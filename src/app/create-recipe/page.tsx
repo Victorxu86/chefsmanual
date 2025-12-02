@@ -44,6 +44,9 @@ export default function CreateRecipePage() {
         alert(result.error)
       }
     } catch (error: any) {
+      if (error.message === "NEXT_REDIRECT") {
+        throw error
+      }
       console.error(error)
       alert("发生错误: " + (error.message || "未知错误"))
     } finally {
