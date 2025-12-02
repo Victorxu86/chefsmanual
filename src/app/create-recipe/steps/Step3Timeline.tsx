@@ -14,10 +14,8 @@ export function Step3Timeline() {
   
   const ingredients = useWatch({ control, name: "ingredients" }) || []
   
-  // 当前选中的步骤索引 (用于右侧面板编辑)
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   
-  // 自动选中新添加的步骤
   const handleAddStep = () => {
     append({
       step_order: fields.length + 1,
@@ -31,10 +29,8 @@ export function Step3Timeline() {
     setSelectedIndex(fields.length)
   }
 
-  // 监听 selectedIndex 变化，更新 draftStep
-  const selectedStep = typeof selectedIndex === 'number' ? fields[selectedIndex] : null
+  const selectedStep: any = typeof selectedIndex === 'number' ? fields[selectedIndex] : null
   
-  // 实时更新辅助函数
   const updateField = (field: string, value: any) => {
     if (selectedIndex === null) return
     // @ts-ignore
@@ -44,7 +40,6 @@ export function Step3Timeline() {
   return (
     <div className="flex h-[600px] gap-6 animate-in fade-in duration-500">
       
-      {/* ================== 左侧：时间轴流 ================== */}
       <div className="flex-1 flex flex-col bg-[var(--color-card)] rounded-[var(--radius-theme)] border border-[var(--color-border-theme)] overflow-hidden shadow-sm">
         <div className="p-4 border-b border-[var(--color-border-theme)] flex justify-between items-center bg-[var(--color-page)]/50">
           <h3 className="font-bold text-[var(--color-main)] flex items-center gap-2">
@@ -170,12 +165,12 @@ export function Step3Timeline() {
                       key={key}
                       type="button"
                       onClick={() => {
-                        updateField('instruction', def.label) // 预填标题
+                        updateField('instruction', def.label)
                         // @ts-ignore
                         updateField('step_type', def.type)
                       }}
                       className={`flex flex-col items-center justify-center p-2 rounded border transition-all
-                        ${selectedStep.instruction.includes(def.label) // 简单的选中判断
+                        ${selectedStep.instruction.includes(def.label) 
                           ? 'bg-[var(--color-accent-light)] border-[var(--color-accent)] text-[var(--color-accent)]' 
                           : 'bg-[var(--color-page)] border-[var(--color-border-theme)] hover:border-[var(--color-accent)]'}
                       `}
@@ -262,4 +257,3 @@ export function Step3Timeline() {
     </div>
   )
 }
-
