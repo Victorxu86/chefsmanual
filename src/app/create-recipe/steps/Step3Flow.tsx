@@ -227,7 +227,7 @@ export function Step3Flow() {
 
       {/* ================= 3. 结果列表 (Timeline List) ================= */}
       <div className="space-y-2">
-        {fields.map((field, index) => (
+        {fields.map((field: any, index) => (
           <div key={field.id} className="flex items-center gap-4 p-4 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] group">
             <span className="w-6 h-6 rounded-full bg-[var(--color-accent-light)] text-[var(--color-accent)] flex items-center justify-center text-xs font-bold">
               {index + 1}
