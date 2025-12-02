@@ -43,7 +43,7 @@ export function Step3Flow() {
     let instruction = actionDef.label
     const ingredientNames = ingredients
       .filter((_: any, i: number) => draftStep.selectedIngredients.includes(i.toString()))
-      .map(i => i.name)
+      .map((i: any) => i.name)
       .join("、")
     
     if (ingredientNames) instruction += ` ${ingredientNames}`
