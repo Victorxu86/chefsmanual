@@ -9,7 +9,7 @@ import { DashboardHeader } from "@/components/DashboardHeader"
 import { useMode } from "@/context/ModeContext"
 import { Step1Meta } from "./steps/Step1Meta"
 import { Step2Ingredients } from "./steps/Step2Ingredients"
-import { Step3Flow } from "./steps/Step3Flow"
+import { Step3Timeline } from "./steps/Step3Timeline" // 使用新组件
 import { Save, ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 
@@ -46,7 +46,6 @@ export default function CreateRecipePage() {
       if (result?.error) {
         alert(result.error)
       } else if (result?.success) {
-        // 创建成功后跳转到菜谱列表页
         router.push('/recipes')
       }
     } catch (error: any) {
@@ -59,7 +58,6 @@ export default function CreateRecipePage() {
 
   const handleNext = async () => {
     let valid = false
-    
     if (currentStep === 1) {
       valid = await methods.trigger(["title", "description", "servings", "cuisine", "difficulty"])
     } else if (currentStep === 2) {
@@ -75,18 +73,11 @@ export default function CreateRecipePage() {
     setCurrentStep(prev => Math.max(prev - 1, 1))
   }
 
-  // 拦截回车提交
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
-      e.preventDefault()
-    }
-  }
-
   return (
     <div className="min-h-screen bg-[var(--color-page)] transition-colors duration-700">
       <DashboardHeader userEmail="" />
       
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {/* Header */}
         <div className="mb-8 text-center">
@@ -94,7 +85,6 @@ export default function CreateRecipePage() {
             {mode === "personal" ? "创建新菜谱" : "DEFINE_NEW_SOP"}
           </h1>
           
-          {/* Progress Bar */}
           <div className="flex justify-center items-center gap-4 mt-6">
             {STEPS.map((step, idx) => (
               <div key={step.id} className="flex items-center">
@@ -116,20 +106,18 @@ export default function CreateRecipePage() {
         </div>
 
         <FormProvider {...methods}>
+          {/* 关键：阻止默认的表单提交 */}
           <form 
-            onSubmit={methods.handleSubmit(onSubmit)} 
-            onKeyDown={handleKeyDown}
+            onSubmit={(e) => e.preventDefault()} 
             className="space-y-8"
           >
             
-            {/* Step Content */}
             <div className="min-h-[400px]">
               {currentStep === 1 && <Step1Meta />}
               {currentStep === 2 && <Step2Ingredients />}
-              {currentStep === 3 && <Step3Flow />}
+              {currentStep === 3 && <Step3Timeline />}
             </div>
 
-            {/* Navigation Buttons */}
             <div className="sticky bottom-8 z-20 flex justify-between p-4 rounded-[var(--radius-theme)] bg-[var(--color-card)]/80 backdrop-blur border border-[var(--color-border-theme)] shadow-xl">
               <button
                 type="button"
@@ -150,7 +138,9 @@ export default function CreateRecipePage() {
                 </button>
               ) : (
                 <button
-                  type="submit"
+                  type="button"
+                  // 只有最后一步的按钮才触发 handleSubmit
+                  onClick={methods.handleSubmit(onSubmit)}
                   disabled={isSubmitting}
                   className="px-8 py-2 rounded-[var(--radius-theme)] bg-[var(--color-accent)] text-white font-bold hover:opacity-90 transition-all flex items-center gap-2"
                 >
