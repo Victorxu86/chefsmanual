@@ -105,7 +105,7 @@ export function Step3Flow() {
           <div className="space-y-6">
             
             {/* 选择食材 */}
-            {(ACTIONS[editingAction].params.includes("ingredient") || ACTIONS[editingAction].params.includes("ingredients")) && (
+            {(ACTIONS[editingAction].params as readonly string[]).includes("ingredient") || (ACTIONS[editingAction].params as readonly string[]).includes("ingredients") ? (
               <div>
                 <label className="block text-sm font-medium text-[var(--color-muted)] mb-2">对象 (选择食材)</label>
                 <div className="flex flex-wrap gap-2">
@@ -135,10 +135,10 @@ export function Step3Flow() {
                   {ingredients.length === 0 && <span className="text-xs text-red-500">请先在上一步添加食材</span>}
                 </div>
               </div>
-            )}
+            ) : null}
 
             {/* 切割形状 */}
-            {ACTIONS[editingAction].params.includes("shape") && (
+            {(ACTIONS[editingAction].params as readonly string[]).includes("shape") && (
               <div>
                 <label className="block text-sm font-medium text-[var(--color-muted)] mb-2">切成什么样？</label>
                 <div className="flex flex-wrap gap-2">
@@ -161,7 +161,7 @@ export function Step3Flow() {
             )}
 
             {/* 火力 */}
-            {ACTIONS[editingAction].params.includes("heat") && (
+            {(ACTIONS[editingAction].params as readonly string[]).includes("heat") && (
               <div>
                 <label className="block text-sm font-medium text-[var(--color-muted)] mb-2">火力</label>
                 <input 
@@ -177,7 +177,7 @@ export function Step3Flow() {
             )}
 
             {/* 时长 */}
-            {ACTIONS[editingAction].params.includes("duration") && (
+            {(ACTIONS[editingAction].params as readonly string[]).includes("duration") && (
               <div>
                 <label className="block text-sm font-medium text-[var(--color-muted)] mb-2">预计耗时 (分钟)</label>
                 <div className="flex items-center gap-4">
