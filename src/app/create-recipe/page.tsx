@@ -45,7 +45,6 @@ export default function CreateRecipePage() {
       if (result?.error) {
         alert(result.error)
       } else if (result?.success) {
-        // Success! Redirect to dashboard
         router.push('/dashboard')
       }
     } catch (error: any) {
@@ -56,16 +55,12 @@ export default function CreateRecipePage() {
     }
   }
 
-  // 改进：分步验证
   const handleNext = async () => {
     let valid = false
     
     if (currentStep === 1) {
-      // Step 1 只验证基本信息
       valid = await methods.trigger(["title", "description", "servings", "cuisine", "difficulty"])
     } else if (currentStep === 2) {
-      // Step 2 验证食材 (暂时不强制，可以没有食材)
-      // 如果需要验证 ingredients 数组非空，可以在 schema 加 .min(1)
       valid = true 
     }
 
@@ -76,6 +71,13 @@ export default function CreateRecipePage() {
 
   const handlePrev = () => {
     setCurrentStep(prev => Math.max(prev - 1, 1))
+  }
+
+  // 拦截回车提交
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+      e.preventDefault()
+    }
   }
 
   return (
@@ -112,7 +114,11 @@ export default function CreateRecipePage() {
         </div>
 
         <FormProvider {...methods}>
-          <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-8">
+          <form 
+            onSubmit={methods.handleSubmit(onSubmit)} 
+            onKeyDown={handleKeyDown}
+            className="space-y-8"
+          >
             
             {/* Step Content */}
             <div className="min-h-[400px]">
