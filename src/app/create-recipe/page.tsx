@@ -23,7 +23,6 @@ export default function CreateRecipePage() {
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // 移除泛型 <RecipeFormValues> 以允许类型推断兼容
   const methods = useForm({
     resolver: zodResolver(recipeSchema),
     defaultValues: {
@@ -36,4 +35,110 @@ export default function CreateRecipePage() {
       steps: []
     }
   })
-// ... rest of the file
+
+  const onSubmit = async (data: any) => {
+    setIsSubmitting(true)
+    try {
+      const result = await createRecipe(data)
+      if (result?.error) {
+        alert(result.error)
+      }
+    } catch (error) {
+      console.error(error)
+      alert("发生未知错误")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleNext = async () => {
+    const valid = await methods.trigger()
+    if (valid) {
+      setCurrentStep(prev => Math.min(prev + 1, 3))
+    }
+  }
+
+  const handlePrev = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1))
+  }
+
+  return (
+    <div className="min-h-screen bg-[var(--color-page)] transition-colors duration-700">
+      <DashboardHeader userEmail="" />
+      
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* Header */}
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-bold text-[var(--color-main)] mb-2">
+            {mode === "personal" ? "创建新菜谱" : "DEFINE_NEW_SOP"}
+          </h1>
+          
+          {/* Progress Bar */}
+          <div className="flex justify-center items-center gap-4 mt-6">
+            {STEPS.map((step, idx) => (
+              <div key={step.id} className="flex items-center">
+                <div className={`
+                  flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold transition-all
+                  ${currentStep >= step.id ? 'bg-[var(--color-accent)] text-white' : 'bg-[var(--color-border-theme)] text-[var(--color-muted)]'}
+                `}>
+                  {currentStep > step.id ? <CheckCircle2 className="h-5 w-5" /> : step.id}
+                </div>
+                <span className={`ml-2 text-sm font-medium ${currentStep >= step.id ? 'text-[var(--color-main)]' : 'text-[var(--color-muted)]'}`}>
+                  {step.title}
+                </span>
+                {idx < STEPS.length - 1 && (
+                  <div className="w-12 h-px bg-[var(--color-border-theme)] mx-4" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <FormProvider {...methods}>
+          <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-8">
+            
+            {/* Step Content */}
+            <div className="min-h-[400px]">
+              {currentStep === 1 && <Step1Meta />}
+              {currentStep === 2 && <Step2Ingredients />}
+              {currentStep === 3 && <Step3Flow />}
+            </div>
+
+            {/* Navigation Buttons */}
+            <div className="sticky bottom-8 z-20 flex justify-between p-4 rounded-[var(--radius-theme)] bg-[var(--color-card)]/80 backdrop-blur border border-[var(--color-border-theme)] shadow-xl">
+              <button
+                type="button"
+                onClick={handlePrev}
+                disabled={currentStep === 1}
+                className="px-6 py-2 rounded-[var(--radius-theme)] text-[var(--color-muted)] hover:bg-[var(--color-page)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" /> 上一步
+              </button>
+
+              {currentStep < 3 ? (
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className="px-8 py-2 rounded-[var(--radius-theme)] bg-[var(--color-main)] text-[var(--color-page)] font-bold hover:opacity-90 transition-all flex items-center gap-2"
+                >
+                  下一步 <ArrowRight className="h-4 w-4" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-8 py-2 rounded-[var(--radius-theme)] bg-[var(--color-accent)] text-white font-bold hover:opacity-90 transition-all flex items-center gap-2"
+                >
+                  {isSubmitting ? "保存中..." : "完成并保存"} <Save className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+          </form>
+        </FormProvider>
+
+      </main>
+    </div>
+  )
+}
