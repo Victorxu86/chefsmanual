@@ -64,9 +64,7 @@ export const INGREDIENT_CATEGORIES = [
   { value: "other", label: "其他" },
 ] as const
 
-// 新增：食材单位
 export const INGREDIENT_UNITS = [
-  // 精确单位
   { value: "g", label: "克 (g)", type: "precise" },
   { value: "kg", label: "千克 (kg)", type: "precise" },
   { value: "ml", label: "毫升 (ml)", type: "precise" },
@@ -75,11 +73,43 @@ export const INGREDIENT_UNITS = [
   { value: "tbsp", label: "汤匙", type: "precise" },
   { value: "cup", label: "杯", type: "precise" },
   { value: "pcs", label: "个/只/根", type: "precise" },
-  
-  // 模糊单位
   { value: "some", label: "适量", type: "vague" },
   { value: "little", label: "少许", type: "vague" },
   { value: "pinch", label: "一撮", type: "vague" },
   { value: "dash", label: "一点", type: "vague" },
   { value: "taste", label: "按口味", type: "vague" },
+] as const
+
+// 新增：详细动作字典
+export const ACTIONS = {
+  // 🔪 备菜类
+  cut: { label: "切", icon: "🔪", type: "prep", params: ["ingredient", "shape", "duration"] },
+  wash: { label: "洗", icon: "💧", type: "prep", params: ["ingredient", "duration"] },
+  marinate: { label: "腌制", icon: "🥣", type: "prep", params: ["ingredient", "condiment", "duration"] },
+  mix: { label: "混合", icon: "🔄", type: "prep", params: ["ingredients", "tool", "duration"] },
+  
+  // 🍳 炉灶烹饪
+  stir_fry: { label: "炒", icon: "🍳", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
+  boil: { label: "煮", icon: "🍲", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
+  steam: { label: "蒸", icon: "♨️", type: "cook", params: ["ingredients", "duration", "tool"] },
+  fry: { label: "煎/炸", icon: "🍤", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
+  stew: { label: "炖/焖", icon: "🥘", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
+  
+  // 🌡️ 烤箱/设备
+  bake: { label: "烘烤", icon: "🍰", type: "cook", params: ["ingredients", "temp", "duration", "tool"] },
+  
+  // 🍽️ 其他
+  plate: { label: "摆盘", icon: "🍽️", type: "serve", params: ["duration"] },
+  rest: { label: "静置", icon: "⏳", type: "wait", params: ["duration"] },
+} as const
+
+export type ActionKey = keyof typeof ACTIONS
+
+export const SHAPES = [
+  { value: "slice", label: "片" },
+  { value: "strip", label: "丝" },
+  { value: "cube", label: "块/丁" },
+  { value: "mince", label: "末/泥" },
+  { value: "chunk", label: "滚刀块" },
+  { value: "whole", label: "整只" },
 ] as const

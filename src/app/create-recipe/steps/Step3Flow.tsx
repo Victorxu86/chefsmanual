@@ -1,231 +1,257 @@
 "use client"
 
 import { useState } from "react"
-import { useFieldArray, useFormContext } from "react-hook-form"
+import { useFieldArray, useFormContext, useWatch } from "react-hook-form"
 import { RecipeFormValues } from "@/lib/schemas"
-import { STEP_TYPES, EQUIPMENT, HEAT_LEVELS, ATTENTION_LEVELS } from "@/lib/constants"
-import { Plus, Trash2, GripVertical, Clock, ChevronDown, ChevronUp, Zap } from "lucide-react"
+import { ACTIONS, ActionKey, SHAPES, HEAT_LEVELS, EQUIPMENT } from "@/lib/constants"
+import { Trash2, Check, X, GripVertical } from "lucide-react"
 
 export function Step3Flow() {
-  const { control, register, watch } = useFormContext<RecipeFormValues>()
-  const { fields, append, remove } = useFieldArray({
+  const { control, append, remove } = useFieldArray({
     control,
     name: "steps"
   })
   
-  // 模式状态：基础/专业
-  const [isProMode, setIsProMode] = useState(false)
+  // 读取已填写的食材，供选择
+  const ingredients = useWatch({ control, name: "ingredients" }) || []
 
-  // 展开状态 map
-  const [expandedSteps, setExpandedSteps] = useState<Record<number, boolean>>({})
+  // 临时状态：正在构建的步骤
+  const [editingAction, setEditingAction] = useState<ActionKey | null>(null)
+  const [draftStep, setDraftStep] = useState<any>({})
 
-  const toggleExpand = (index: number) => {
-    setExpandedSteps(prev => ({ ...prev, [index]: !prev[index] }))
+  // 1. 选择动作
+  const handleActionClick = (key: ActionKey) => {
+    setEditingAction(key)
+    setDraftStep({
+      actionKey: key,
+      selectedIngredients: [],
+      duration: 0,
+      // 默认值
+      heat: 'medium',
+      tool: 'wok'
+    })
   }
 
-  const handleAddStep = (type: "prep" | "cook" | "wait" | "serve") => {
+  // 2. 提交动作 -> 生成 Step
+  const confirmAction = () => {
+    if (!editingAction) return
+
+    const actionDef = ACTIONS[editingAction]
+    
+    // 生成自然语言指令
+    let instruction = actionDef.label
+    const ingredientNames = ingredients
+      .filter((_, i) => draftStep.selectedIngredients.includes(i.toString()))
+      .map(i => i.name)
+      .join("、")
+    
+    if (ingredientNames) instruction += ` ${ingredientNames}`
+    if (draftStep.shape) instruction += ` 切成${SHAPES.find(s => s.value === draftStep.shape)?.label}`
+    
     append({
-      step_order: fields.length + 1,
-      instruction: "",
-      step_type: type,
-      duration: 0,
-      is_active: type !== "wait",
-      is_interruptible: true,
-      attention_level: "medium"
+      step_order: 0, // 后端会自动修正
+      instruction: instruction,
+      step_type: actionDef.type,
+      duration: Number(draftStep.duration) * 60, // 分钟转秒
+      is_active: actionDef.type !== 'wait',
+      equipment: draftStep.tool,
+      heat_level: draftStep.heat,
+      // 还可以存更多结构化数据
     })
-    // 自动展开新步骤
-    setExpandedSteps(prev => ({ ...prev, [fields.length]: true }))
+
+    setEditingAction(null)
+    setDraftStep({})
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+    <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
       
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold text-[var(--color-main)]">烹饪流程</h2>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-[var(--color-muted)]">专业模式</span>
-          <button 
-            type="button"
-            onClick={() => setIsProMode(!isProMode)}
-            className={`w-10 h-6 rounded-full transition-colors relative ${isProMode ? 'bg-[var(--color-accent)]' : 'bg-[var(--color-border-theme)]'}`}
-          >
-            <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${isProMode ? 'translate-x-4' : 'translate-x-0'}`} />
-          </button>
+      <h2 className="text-xl font-bold text-[var(--color-main)]">烹饪流程</h2>
+
+      {/* ================= 1. 动作选择区 (Action Grid) ================= */}
+      {!editingAction && (
+        <div className="grid grid-cols-4 gap-4">
+          {(Object.entries(ACTIONS) as [ActionKey, typeof ACTIONS[ActionKey]][]).map(([key, def]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => handleActionClick(key)}
+              className="flex flex-col items-center justify-center p-4 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] hover:border-[var(--color-accent)] hover:shadow-md transition-all group"
+            >
+              <span className="text-3xl mb-2 group-hover:scale-110 transition-transform">{def.icon}</span>
+              <span className="text-sm font-bold text-[var(--color-main)]">{def.label}</span>
+            </button>
+          ))}
         </div>
-      </div>
+      )}
 
-      {/* 步骤列表 */}
-      <div className="space-y-4">
-        {fields.map((field, index) => {
-          const type = watch(`steps.${index}.step_type`)
-          const isExpanded = expandedSteps[index]
+      {/* ================= 2. 参数构建区 (Sentence Builder) ================= */}
+      {editingAction && (
+        <div className="p-6 rounded-[var(--radius-theme)] bg-[var(--color-card)] border-2 border-[var(--color-accent)] shadow-xl space-y-6">
+          
+          {/* 标题栏 */}
+          <div className="flex items-center gap-3 pb-4 border-b border-[var(--color-border-theme)]">
+            <span className="text-4xl">{ACTIONS[editingAction].icon}</span>
+            <div>
+              <h3 className="text-lg font-bold text-[var(--color-main)]">
+                {ACTIONS[editingAction].label} ...
+              </h3>
+              <p className="text-xs text-[var(--color-muted)]">构建你的指令</p>
+            </div>
+          </div>
 
-          return (
-            <div key={field.id} className="rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] overflow-hidden transition-all hover:border-[var(--color-accent)]">
-              {/* 头部摘要 */}
-              <div 
-                className="flex items-center gap-3 p-4 cursor-pointer bg-[var(--color-page)]/50"
-                onClick={() => toggleExpand(index)}
-              >
-                <GripVertical className="h-4 w-4 text-[var(--color-muted)] cursor-grab" />
-                
-                <div className={`
-                  px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider
-                  ${type === 'prep' ? 'bg-blue-100 text-blue-700' : 
-                    type === 'cook' ? 'bg-orange-100 text-orange-700' : 
-                    type === 'wait' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}
-                `}>
-                  {STEP_TYPES.find(t => t.value === type)?.label}
-                </div>
-
-                <input
-                  {...register(`steps.${index}.instruction`)}
-                  onClick={e => e.stopPropagation()}
-                  className="flex-1 bg-transparent font-medium outline-none text-[var(--color-main)] placeholder-[var(--color-muted)]"
-                  placeholder="简要描述 (如: 切洋葱)"
-                />
-
-                <div className="flex items-center gap-4 text-sm text-[var(--color-muted)]">
-                   <div className="flex items-center gap-1">
-                     <Clock className="h-3 w-3" />
-                     <span>{watch(`steps.${index}.duration`)}s</span>
-                   </div>
-                   {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          {/* 动态表单：根据 params 渲染 */}
+          <div className="space-y-6">
+            
+            {/* 选择食材 */}
+            {(ACTIONS[editingAction].params.includes("ingredient") || ACTIONS[editingAction].params.includes("ingredients")) && (
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-muted)] mb-2">对象 (选择食材)</label>
+                <div className="flex flex-wrap gap-2">
+                  {ingredients.map((ing, idx) => {
+                    const isSelected = (draftStep.selectedIngredients || []).includes(idx.toString())
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          const current = draftStep.selectedIngredients || []
+                          const next = current.includes(idx.toString())
+                            ? current.filter((i: string) => i !== idx.toString())
+                            : [...current, idx.toString()]
+                          setDraftStep({ ...draftStep, selectedIngredients: next })
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-sm border transition-all ${
+                          isSelected 
+                            ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)]' 
+                            : 'bg-[var(--color-page)] text-[var(--color-main)] border-[var(--color-border-theme)] hover:border-[var(--color-accent)]'
+                        }`}
+                      >
+                        {ing.name}
+                      </button>
+                    )
+                  })}
+                  {ingredients.length === 0 && <span className="text-xs text-red-500">请先在上一步添加食材</span>}
                 </div>
               </div>
+            )}
 
-              {/* 展开详情区 */}
-              {isExpanded && (
-                <div className="p-4 border-t border-[var(--color-border-theme)] bg-[var(--color-card)] space-y-4 animate-in slide-in-from-top-2 duration-200">
-                  
-                  {/* 时长与基本设置 */}
-                  <div className="grid grid-cols-2 gap-4">
-                     <div>
-                       <label className="block text-xs font-medium text-[var(--color-muted)] mb-1">时长 (秒)</label>
-                       <input 
-                         type="number"
-                         {...register(`steps.${index}.duration`, { valueAsNumber: true })}
-                         className="w-full px-3 py-2 rounded-[var(--radius-theme)] bg-[var(--color-page)] border border-[var(--color-border-theme)] text-sm"
-                       />
-                     </div>
-                     <div>
-                       <label className="block text-xs font-medium text-[var(--color-muted)] mb-1">设备</label>
-                       <select 
-                         {...register(`steps.${index}.equipment`)}
-                         className="w-full px-3 py-2 rounded-[var(--radius-theme)] bg-[var(--color-page)] border border-[var(--color-border-theme)] text-sm"
-                       >
-                         <option value="">无/不限</option>
-                         {EQUIPMENT.map(e => (
-                           <option key={e.value} value={e.value}>{e.label}</option>
-                         ))}
-                       </select>
-                     </div>
-                  </div>
-
-                  <div className="pt-2">
-                    <label className="block text-xs font-medium text-[var(--color-muted)] mb-1">详细说明</label>
-                    <textarea 
-                      {...register(`steps.${index}.description`)}
-                      rows={2}
-                      className="w-full px-3 py-2 rounded-[var(--radius-theme)] bg-[var(--color-page)] border border-[var(--color-border-theme)] text-sm"
-                      placeholder="补充细节，如切的大小、注意事项..."
-                    />
-                  </div>
-
-                  {/* 专业模式字段 */}
-                  {isProMode && (
-                    <div className="pt-4 mt-4 border-t border-[var(--color-border-theme)] border-dashed grid grid-cols-2 gap-4">
-                      <div>
-                         <label className="block text-xs font-medium text-[var(--color-muted)] mb-1">火力/温度</label>
-                         <select 
-                           {...register(`steps.${index}.heat_level`)}
-                           className="w-full px-3 py-2 rounded-[var(--radius-theme)] bg-[var(--color-page)] border border-[var(--color-border-theme)] text-sm"
-                         >
-                           <option value="">无</option>
-                           {HEAT_LEVELS.map(h => (
-                             <option key={h.value} value={h.value}>{h.label}</option>
-                           ))}
-                         </select>
-                      </div>
-                      <div>
-                         <label className="block text-xs font-medium text-[var(--color-muted)] mb-1">注意力等级</label>
-                         <select 
-                           {...register(`steps.${index}.attention_level`)}
-                           className="w-full px-3 py-2 rounded-[var(--radius-theme)] bg-[var(--color-page)] border border-[var(--color-border-theme)] text-sm"
-                         >
-                           {ATTENTION_LEVELS.map(a => (
-                             <option key={a.value} value={a.value}>{a.label}</option>
-                           ))}
-                         </select>
-                      </div>
-                      
-                      <div className="col-span-2 flex gap-4 pt-2">
-                        <label className="flex items-center gap-2 text-xs cursor-pointer">
-                          <input type="checkbox" {...register(`steps.${index}.is_active`)} className="rounded text-[var(--color-accent)]" />
-                          占用人手 (Active)
-                        </label>
-                        <label className="flex items-center gap-2 text-xs cursor-pointer">
-                          <input type="checkbox" {...register(`steps.${index}.is_interruptible`)} className="rounded text-[var(--color-accent)]" />
-                          可随时打断 (Interruptible)
-                        </label>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 删除按钮 */}
-                  <div className="flex justify-end pt-2">
-                    <button 
+            {/* 切割形状 */}
+            {ACTIONS[editingAction].params.includes("shape") && (
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-muted)] mb-2">切成什么样？</label>
+                <div className="flex flex-wrap gap-2">
+                  {SHAPES.map(s => (
+                    <button
+                      key={s.value}
                       type="button"
-                      onClick={() => remove(index)}
-                      className="text-xs text-red-500 hover:underline flex items-center gap-1"
+                      onClick={() => setDraftStep({ ...draftStep, shape: s.value })}
+                      className={`px-3 py-1.5 rounded-md text-xs border transition-all ${
+                        draftStep.shape === s.value
+                          ? 'bg-blue-100 text-blue-700 border-blue-300'
+                          : 'bg-[var(--color-page)] text-[var(--color-muted)] border-[var(--color-border-theme)]'
+                      }`}
                     >
-                      <Trash2 className="h-3 w-3" /> 删除步骤
+                      {s.label}
                     </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 火力 */}
+            {ACTIONS[editingAction].params.includes("heat") && (
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-muted)] mb-2">火力</label>
+                <input 
+                  type="range" min="0" max="4" step="1" 
+                  className="w-full accent-[var(--color-accent)]"
+                  value={HEAT_LEVELS.findIndex(h => h.value === draftStep.heat)}
+                  onChange={e => setDraftStep({ ...draftStep, heat: HEAT_LEVELS[e.target.valueAsNumber].value })}
+                />
+                <div className="flex justify-between text-xs text-[var(--color-muted)] mt-1">
+                  {HEAT_LEVELS.map(h => <span key={h.value}>{h.label.split(' ')[0]}</span>)}
+                </div>
+              </div>
+            )}
+
+            {/* 时长 */}
+            {ACTIONS[editingAction].params.includes("duration") && (
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-muted)] mb-2">预计耗时 (分钟)</label>
+                <div className="flex items-center gap-4">
+                  <input 
+                    type="number" 
+                    value={draftStep.duration || ''}
+                    onChange={e => setDraftStep({ ...draftStep, duration: e.target.value })}
+                    className="w-24 px-3 py-2 rounded border border-[var(--color-border-theme)] bg-[var(--color-page)] text-center font-bold text-lg"
+                  />
+                  <div className="flex gap-2">
+                    {[1, 3, 5, 10, 30].map(m => (
+                      <button 
+                        key={m} type="button"
+                        onClick={() => setDraftStep({ ...draftStep, duration: m })}
+                        className="px-3 py-1 rounded bg-[var(--color-page)] text-xs hover:bg-[var(--color-border-theme)]"
+                      >
+                        {m}m
+                      </button>
+                    ))}
                   </div>
                 </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
+              </div>
+            )}
 
-      {/* 添加按钮栏 (Action Bar) */}
-      <div className="grid grid-cols-4 gap-3 pt-4">
-        <button 
-          type="button"
-          onClick={() => handleAddStep('prep')}
-          className="flex flex-col items-center justify-center p-4 rounded-[var(--radius-theme)] bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors border border-blue-200"
-        >
-          <span className="text-xl mb-1">🔪</span>
-          <span className="text-xs font-bold">备菜 (Prep)</span>
-        </button>
-        <button 
-          type="button"
-          onClick={() => handleAddStep('cook')}
-          className="flex flex-col items-center justify-center p-4 rounded-[var(--radius-theme)] bg-orange-50 hover:bg-orange-100 text-orange-700 transition-colors border border-orange-200"
-        >
-          <span className="text-xl mb-1">🍳</span>
-          <span className="text-xs font-bold">烹饪 (Cook)</span>
-        </button>
-        <button 
-          type="button"
-          onClick={() => handleAddStep('wait')}
-          className="flex flex-col items-center justify-center p-4 rounded-[var(--radius-theme)] bg-purple-50 hover:bg-purple-100 text-purple-700 transition-colors border border-purple-200"
-        >
-          <span className="text-xl mb-1">⏳</span>
-          <span className="text-xs font-bold">等待 (Wait)</span>
-        </button>
-        <button 
-          type="button"
-          onClick={() => handleAddStep('serve')}
-          className="flex flex-col items-center justify-center p-4 rounded-[var(--radius-theme)] bg-green-50 hover:bg-green-100 text-green-700 transition-colors border border-green-200"
-        >
-          <span className="text-xl mb-1">🍽️</span>
-          <span className="text-xs font-bold">收尾 (Serve)</span>
-        </button>
+          </div>
+
+          {/* 底部按钮 */}
+          <div className="flex gap-3 pt-4 border-t border-[var(--color-border-theme)]">
+            <button
+              type="button"
+              onClick={() => setEditingAction(null)}
+              className="flex-1 py-3 rounded-[var(--radius-theme)] border border-[var(--color-border-theme)] text-[var(--color-muted)] hover:bg-[var(--color-page)] flex items-center justify-center gap-2"
+            >
+              <X className="h-4 w-4" /> 取消
+            </button>
+            <button
+              type="button"
+              onClick={confirmAction}
+              className="flex-1 py-3 rounded-[var(--radius-theme)] bg-[var(--color-accent)] text-white font-bold hover:opacity-90 flex items-center justify-center gap-2"
+            >
+              <Check className="h-4 w-4" /> 确认添加步骤
+            </button>
+          </div>
+
+        </div>
+      )}
+
+      {/* ================= 3. 结果列表 (Timeline List) ================= */}
+      <div className="space-y-2">
+        {fields.map((field, index) => (
+          <div key={field.id} className="flex items-center gap-4 p-4 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] group">
+            <span className="w-6 h-6 rounded-full bg-[var(--color-accent-light)] text-[var(--color-accent)] flex items-center justify-center text-xs font-bold">
+              {index + 1}
+            </span>
+            
+            <div className="flex-1">
+              <p className="text-[var(--color-main)] font-medium">{field.instruction}</p>
+              <div className="flex gap-3 text-xs text-[var(--color-muted)] mt-1">
+                {field.duration > 0 && <span>⏱️ {Math.round(field.duration / 60)} 分钟</span>}
+                {field.equipment && <span>🔧 {EQUIPMENT.find(e => e.value === field.equipment)?.label}</span>}
+                {field.heat_level && <span>🔥 {HEAT_LEVELS.find(h => h.value === field.heat_level)?.label}</span>}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => remove(index)}
+              className="p-2 text-[var(--color-muted)] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
       </div>
 
     </div>
   )
 }
-
