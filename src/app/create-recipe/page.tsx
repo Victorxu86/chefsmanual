@@ -7,7 +7,7 @@ import { recipeSchema, type RecipeFormValues } from "@/lib/schemas"
 import { createRecipe } from "./actions"
 import { DashboardHeader } from "@/components/DashboardHeader"
 import { useMode } from "@/context/ModeContext"
-import { Plus, Trash2, Save, Clock, Flame, GripVertical } from "lucide-react"
+import { Plus, Trash2, Save, Clock, Flame, GripVertical, Utensils } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 export default function CreateRecipePage() {
@@ -23,6 +23,9 @@ export default function CreateRecipePage() {
       servings: 2,
       prepTime: 10,
       cookTime: 20,
+      difficulty: "medium",
+      isPublic: false,
+      ingredients: [],
       steps: [
         { id: "1", instruction: "准备好所有食材", duration: 0, isPassive: false }
       ]
@@ -37,9 +40,6 @@ export default function CreateRecipePage() {
   async function onSubmit(data: RecipeFormValues) {
     setIsSubmitting(true)
     try {
-      // 这里我们需要把数据传给 Server Action
-      // 注意：Server Actions 通常接受 FormData，但为了复杂数据结构，我们也可以直接传 JSON 对象
-      // 但为了保险起见，我们在 client 组件里调用 server action 函数
       const result = await createRecipe(data)
       if (result?.error) {
         alert(result.error)
@@ -54,7 +54,7 @@ export default function CreateRecipePage() {
 
   return (
     <div className="min-h-screen bg-[var(--color-page)] transition-colors duration-700">
-      <DashboardHeader userEmail="" /> {/* 这里的 userEmail 暂时留空或通过 props 传入 */}
+      <DashboardHeader userEmail="" />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
@@ -278,4 +278,3 @@ export default function CreateRecipePage() {
     </div>
   )
 }
-
