@@ -56,8 +56,19 @@ export default function CreateRecipePage() {
     }
   }
 
+  // 改进：分步验证
   const handleNext = async () => {
-    const valid = await methods.trigger()
+    let valid = false
+    
+    if (currentStep === 1) {
+      // Step 1 只验证基本信息
+      valid = await methods.trigger(["title", "description", "servings", "cuisine", "difficulty"])
+    } else if (currentStep === 2) {
+      // Step 2 验证食材 (暂时不强制，可以没有食材)
+      // 如果需要验证 ingredients 数组非空，可以在 schema 加 .min(1)
+      valid = true 
+    }
+
     if (valid) {
       setCurrentStep(prev => Math.min(prev + 1, 3))
     }
