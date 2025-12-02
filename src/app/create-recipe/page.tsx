@@ -15,7 +15,7 @@ export default function CreateRecipePage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const router = useRouter()
 
-  const form = useForm<RecipeFormValues>({
+  const form = useForm({
     resolver: zodResolver(recipeSchema),
     defaultValues: {
       title: "",
@@ -34,10 +34,10 @@ export default function CreateRecipePage() {
 
   const { fields: stepFields, append: appendStep, remove: removeStep } = useFieldArray({
     control: form.control,
-    name: "steps"
+    name: "steps" as any // Type assertion for nested array
   })
 
-  async function onSubmit(data: RecipeFormValues) {
+  async function onSubmit(data: any) {
     setIsSubmitting(true)
     try {
       const result = await createRecipe(data)
@@ -90,7 +90,7 @@ export default function CreateRecipePage() {
                       placeholder="例如：经典红烧肉"
                     />
                     {form.formState.errors.title && (
-                      <p className="text-red-500 text-xs mt-1">{form.formState.errors.title.message}</p>
+                      <p className="text-red-500 text-xs mt-1">{form.formState.errors.title.message as string}</p>
                     )}
                   </div>
 
@@ -253,7 +253,7 @@ export default function CreateRecipePage() {
                     </div>
                   </div>
                   <div className="space-y-2 mt-4">
-                    {(form.watch("steps") || []).slice(0, 3).map((step, i) => (
+                    {(form.watch("steps") || []).slice(0, 3).map((step: any, i: number) => (
                       <div key={i} className="flex items-center gap-3 text-sm text-[var(--color-muted)]">
                         <span className="w-5 h-5 rounded-full bg-[var(--color-border-theme)] flex items-center justify-center text-[var(--color-main)] text-xs">
                           {i + 1}
