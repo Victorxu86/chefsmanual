@@ -1,29 +1,75 @@
 import { z } from "zod"
+import { 
+  CUISINES, 
+  DIFFICULTIES, 
+  INGREDIENT_CATEGORIES, 
+  STEP_TYPES, 
+  ATTENTION_LEVELS,
+  EQUIPMENT,
+  HEAT_LEVELS 
+} from "./constants"
 
-export const recipeSchema = z.object({
-  title: z.string().min(1, "请输入菜谱名称"),
+// 提取常量的值作为 Enum
+const CuisineEnum = z.enum(CUISINES.map(c => c.value) as [string, ...string[]]);
+const DifficultyEnum = z.enum(DIFFICULTIES.map(d => d.value) as [string, ...string[]]);
+const StepTypeEnum = z.enum(STEP_TYPES.map(t => t.value) as [string, ...string[]]);
+const AttentionEnum = z.enum(ATTENTION_LEVELS.map(a => a.value) as [string, ...string[]]);
+const IngredientCategoryEnum = z.enum(INGREDIENT_CATEGORIES.map(c => c.value) as [string, ...string[]]);
+
+// 食材 Schema
+export const ingredientSchema = z.object({
+  id: z.string().optional(), // 用于编辑模式
+  name: z.string().min(1, "食材名称必填"),
+  amount: z.string().optional(),
+  unit: z.string().optional(),
+  category: IngredientCategoryEnum.default("other"),
+  prep_note: z.string().optional(), // "切丝", "去皮"
+  display_order: z.number().default(0),
+})
+
+// 步骤 Schema (核心中的核心)
+export const stepSchema = z.object({
+  id: z.string().optional(),
+  step_order: z.number(),
+  
+  instruction: z.string().min(1, "步骤内容必填"),
   description: z.string().optional(),
-  servings: z.number().min(1, "至少 1 人份").default(2),
-  prepTime: z.number().min(0, "准备时间不能为负").default(0),
-  cookTime: z.number().min(0, "烹饪时间不能为负").default(0),
-  difficulty: z.enum(["easy", "medium", "hard"]).default("medium"),
-  isPublic: z.boolean().default(false),
-  ingredients: z.array(
-    z.object({
-      name: z.string().min(1, "食材名称不能为空"),
-      amount: z.string(),
-      unit: z.string().optional(),
-    })
-  ).default([]),
-  steps: z.array(
-    z.object({
-      id: z.string(),
-      instruction: z.string().min(1, "步骤内容不能为空"),
-      duration: z.number().default(0), // 秒
-      isPassive: z.boolean().default(false), // 是否是被动等待
-    })
-  ).default([]),
+  
+  // 核心调度数据
+  duration: z.number().min(0, "时长不能为负").default(0), // 秒
+  step_type: StepTypeEnum.default("cook"),
+  
+  // 并行与资源
+  is_active: z.boolean().default(true), // 占用人手?
+  is_interruptible: z.boolean().default(true), // 能打断?
+  attention_level: AttentionEnum.default("medium"),
+  
+  // 物理环境
+  equipment: z.string().optional(), // 存 value, 如 "wok"
+  temperature_c: z.number().optional(),
+  heat_level: z.string().optional(), // 存 value, 如 "high"
+  
+  // 依赖关系 (V2)
+  input_ingredients: z.array(z.string()).optional(), // 这一步用到了哪些食材ID
+})
+
+// 菜谱 Schema
+export const recipeSchema = z.object({
+  title: z.string().min(1, "菜谱名称必填"),
+  description: z.string().optional(),
+  cover_image: z.string().optional(),
+  
+  cuisine: CuisineEnum.optional(),
+  difficulty: DifficultyEnum.default("medium"),
+  servings: z.number().min(1).default(2),
+  
+  is_public: z.boolean().default(false),
+  
+  // 关联数据
+  ingredients: z.array(ingredientSchema).default([]),
+  steps: z.array(stepSchema).default([]),
 })
 
 export type RecipeFormValues = z.infer<typeof recipeSchema>
-
+export type StepFormValues = z.infer<typeof stepSchema>
+export type IngredientFormValues = z.infer<typeof ingredientSchema>
