@@ -11,6 +11,7 @@ import { Step1Meta } from "./steps/Step1Meta"
 import { Step2Ingredients } from "./steps/Step2Ingredients"
 import { Step3Flow } from "./steps/Step3Flow"
 import { Save, ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 const STEPS = [
   { id: 1, title: "基本信息" },
@@ -20,6 +21,7 @@ const STEPS = [
 
 export default function CreateRecipePage() {
   const { mode } = useMode()
+  const router = useRouter()
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -42,11 +44,11 @@ export default function CreateRecipePage() {
       const result = await createRecipe(data)
       if (result?.error) {
         alert(result.error)
+      } else if (result?.success) {
+        // Success! Redirect to dashboard
+        router.push('/dashboard')
       }
     } catch (error: any) {
-      if (error.message === "NEXT_REDIRECT") {
-        throw error
-      }
       console.error(error)
       alert("发生错误: " + (error.message || "未知错误"))
     } finally {

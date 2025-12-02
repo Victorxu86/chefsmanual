@@ -2,7 +2,6 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { recipeSchema } from '@/lib/schemas'
-import { redirect } from 'next/navigation'
 
 export async function createRecipe(formData: any) {
   const supabase = await createClient()
@@ -95,6 +94,6 @@ export async function createRecipe(formData: any) {
     }
   }
 
-  // Success
-  redirect('/dashboard')
+  // Success - Return data instead of redirecting
+  return { success: true, id: recipe.id }
 }
