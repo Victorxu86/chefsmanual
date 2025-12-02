@@ -16,13 +16,16 @@ const StepTypeEnum = z.enum(STEP_TYPES.map(t => t.value) as [string, ...string[]
 const AttentionEnum = z.enum(ATTENTION_LEVELS.map(a => a.value) as [string, ...string[]]);
 const IngredientCategoryEnum = z.enum(INGREDIENT_CATEGORIES.map(c => c.value) as [string, ...string[]]);
 
+// 辅助函数：将空字符串转换为 undefined
+const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val);
+
 // 食材 Schema
 export const ingredientSchema = z.object({
   id: z.string().optional(), // 用于编辑模式
   name: z.string().min(1, "食材名称必填"),
   amount: z.string().optional(),
   unit: z.string().optional(),
-  category: IngredientCategoryEnum.default("other"),
+  category: z.preprocess(emptyToUndefined, IngredientCategoryEnum.optional().default("other")),
   prep_note: z.string().optional(), // "切丝", "去皮"
   display_order: z.number().default(0),
 })
@@ -37,17 +40,17 @@ export const stepSchema = z.object({
   
   // 核心调度数据
   duration: z.number().min(0, "时长不能为负").default(0), // 秒
-  step_type: StepTypeEnum.default("cook"),
+  step_type: z.preprocess(emptyToUndefined, StepTypeEnum.default("cook")),
   
   // 并行与资源
   is_active: z.boolean().default(true), // 占用人手?
   is_interruptible: z.boolean().default(true), // 能打断?
-  attention_level: AttentionEnum.default("medium"),
+  attention_level: z.preprocess(emptyToUndefined, AttentionEnum.default("medium")),
   
   // 物理环境
-  equipment: z.string().optional(), // 存 value, 如 "wok"
-  temperature_c: z.number().optional(),
-  heat_level: z.string().optional(), // 存 value, 如 "high"
+  equipment: z.preprocess(emptyToUndefined, z.string().optional()), // 存 value, 如 "wok"
+  temperature_c: z.preprocess((val) => (val === "" ? undefined : Number(val)), z.number().optional()), // 处理空字符串转数字
+  heat_level: z.preprocess(emptyToUndefined, z.string().optional()), // 存 value, 如 "high"
   
   // 依赖关系 (V2)
   input_ingredients: z.array(z.string()).optional(), // 这一步用到了哪些食材ID
@@ -59,9 +62,9 @@ export const recipeSchema = z.object({
   description: z.string().optional(),
   cover_image: z.string().optional(),
   
-  cuisine: CuisineEnum.optional(),
-  difficulty: DifficultyEnum.default("medium"),
-  servings: z.number().min(1).default(2),
+  cuisine: z.preprocess(emptyToUndefined, CuisineEnum.optional()),
+  difficulty: z.preprocess(emptyToUndefined, DifficultyEnum.default("medium")),
+  servings: z.preprocess((val) => Number(val), z.number().min(1).default(2)),
   
   is_public: z.boolean().default(false),
   
