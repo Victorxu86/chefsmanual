@@ -109,7 +109,7 @@ export function Step3Flow() {
               <div>
                 <label className="block text-sm font-medium text-[var(--color-muted)] mb-2">对象 (选择食材)</label>
                 <div className="flex flex-wrap gap-2">
-                  {ingredients.map((ing, idx) => {
+                  {ingredients.map((ing: any, idx: number) => {
                     const isSelected = (draftStep.selectedIngredients || []).includes(idx.toString())
                     return (
                       <button
