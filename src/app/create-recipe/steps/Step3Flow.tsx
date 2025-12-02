@@ -42,7 +42,7 @@ export function Step3Flow() {
     // 生成自然语言指令
     let instruction = actionDef.label
     const ingredientNames = ingredients
-      .filter((_, i) => draftStep.selectedIngredients.includes(i.toString()))
+      .filter((_: any, i: number) => draftStep.selectedIngredients.includes(i.toString()))
       .map(i => i.name)
       .join("、")
     
