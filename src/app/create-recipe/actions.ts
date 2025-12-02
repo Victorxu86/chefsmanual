@@ -84,6 +84,8 @@ export async function createRecipe(formData: any) {
       heat_level: step.heat_level,
     }))
 
+    console.log("Inserting steps:", stepsToInsert)
+
     const { error: stepError } = await supabase
       .from('recipe_steps')
       .insert(stepsToInsert)
@@ -94,6 +96,7 @@ export async function createRecipe(formData: any) {
     }
   }
 
+  console.log("Recipe created successfully:", recipe.id)
   // Success - Return data instead of redirecting
   return { success: true, id: recipe.id }
 }

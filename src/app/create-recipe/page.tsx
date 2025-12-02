@@ -42,10 +42,12 @@ export default function CreateRecipePage() {
     setIsSubmitting(true)
     try {
       const result = await createRecipe(data)
+      
       if (result?.error) {
         alert(result.error)
       } else if (result?.success) {
-        router.push('/dashboard')
+        // 创建成功后跳转到菜谱列表页
+        router.push('/recipes')
       }
     } catch (error: any) {
       console.error(error)
