@@ -7,7 +7,8 @@ import { ACTIONS, ActionKey, SHAPES, HEAT_LEVELS, EQUIPMENT } from "@/lib/consta
 import { Trash2, Check, X, GripVertical } from "lucide-react"
 
 export function Step3Flow() {
-  const { control, append, remove } = useFieldArray({
+  const { control } = useFormContext() // 获取 control
+  const { append, remove, fields } = useFieldArray({
     control,
     name: "steps"
   })
