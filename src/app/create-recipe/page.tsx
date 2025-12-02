@@ -43,9 +43,9 @@ export default function CreateRecipePage() {
       if (result?.error) {
         alert(result.error)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error)
-      alert("发生未知错误")
+      alert("发生错误: " + (error.message || "未知错误"))
     } finally {
       setIsSubmitting(false)
     }
