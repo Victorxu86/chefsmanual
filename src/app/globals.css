@@ -1,54 +1,99 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-:root {
-  --foreground-rgb: 28, 25, 23;
-  --background-start-rgb: 255, 255, 255;
-  --background-end-rgb: 250, 250, 249;
+@theme {
+  /* 定义语义化颜色 */
+  --color-page: rgb(var(--bg-page));
+  --color-card: rgb(var(--bg-card));
+  --color-nav: rgb(var(--bg-nav));
+  
+  --color-main: rgb(var(--text-main));
+  --color-muted: rgb(var(--text-muted));
+  
+  --color-accent: rgb(var(--accent));
+  --color-accent-light: rgb(var(--accent-light));
+  
+  --color-border-theme: rgb(var(--border));
+  
+  /* 定义圆角 */
+  --radius-theme: var(--radius);
+  
+  /* 定义阴影 */
+  --shadow-theme: var(--shadow-soft);
+  
+  /* 动画曲线 */
+  --ease-theme: var(--transition-curve);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+/* 基础变量定义 */
+:root {
+  /* 默认是 Personal Mode (奶白/温馨) */
+  --bg-page: 255 252 245; /* #FFFCF5 Cream */
+  --bg-card: 255 255 255;
+  --bg-nav: 255 255 255;
+  
+  --text-main: 67 56 44; /* Warm dark brown */
+  --text-muted: 120 113 108; /* Warm gray */
+  
+  --accent: 234 88 12; /* Orange-600 */
+  --accent-light: 255 237 213; /* Orange-100 */
+  
+  --border: 231 229 228; /* Stone-200 */
+  --radius: 1rem; /* 16px - 圆润 */
+  --nav-blur: 12px;
+  --shadow-soft: 0 10px 40px -10px rgba(0,0,0,0.08);
+  
+  --transition-curve: cubic-bezier(0.4, 0, 0.2, 1); /* 默认舒适曲线 */
+}
+
+/* Business Mode (纯黑/专业) */
+[data-mode="business"] {
+  --bg-page: 0 0 0; /* True Black */
+  --bg-card: 18 18 18; /* Slightly lighter black for cards */
+  --bg-nav: 0 0 0;
+  
+  --text-main: 255 255 255;
+  --text-muted: 161 161 170; /* Zinc-400 */
+  
+  --accent: 255 255 255; /* White accent */
+  --accent-light: 39 39 42; /* Zinc-800 */
+  
+  --border: 39 39 42; /* Zinc-800 */
+  --radius: 0.25rem; /* 4px - 锋利 */
+  --nav-blur: 0px; /* 无模糊，只有实色或高透明 */
+  --shadow-soft: 0 0 0 1px rgba(255,255,255,0.1); /* 只有描边，没有投影 */
+  
+  --transition-curve: cubic-bezier(0.2, 0, 0, 1); /* 快速精准 */
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background-color: var(--color-page);
+  color: var(--color-main);
+  transition: background-color 0.7s ease-in-out, color 0.7s ease-in-out;
 }
 
-@keyframes blob {
-  0% {
-    transform: translate(0px, 0px) scale(1);
-  }
-  33% {
-    transform: translate(30px, -50px) scale(1.1);
-  }
-  66% {
-    transform: translate(-20px, 20px) scale(0.9);
-  }
-  100% {
-    transform: translate(0px, 0px) scale(1);
-  }
+/* Personal Mode 的背景动画 */
+[data-mode="personal"] .blob-bg {
+  background-image: 
+    radial-gradient(circle at 20% 20%, rgba(254, 215, 170, 0.4) 0%, transparent 40%),
+    radial-gradient(circle at 80% 50%, rgba(255, 237, 213, 0.4) 0%, transparent 40%);
 }
 
-.animate-blob {
-  animation: blob 7s infinite;
+/* Business Mode 的网格背景 */
+[data-mode="business"] .grid-bg {
+  background-size: 40px 40px;
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
 }
 
-.animation-delay-2000 {
-  animation-delay: 2s;
+/* 玻璃拟态工具类 */
+.glass-panel {
+  border: 1px solid var(--color-border-theme);
+  background-color: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(var(--nav-blur));
 }
 
-.animation-delay-4000 {
-  animation-delay: 4s;
+[data-mode="business"] .glass-panel {
+  background-color: rgb(10, 10, 10);
+  backdrop-filter: none;
 }
