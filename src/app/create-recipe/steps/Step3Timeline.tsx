@@ -1,9 +1,38 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form"
 import { ACTIONS, ActionKey, EQUIPMENT, HEAT_LEVELS, SHAPES } from "@/lib/constants"
-import { Plus, Trash2, Clock, Flame, ChevronRight, X, AlertCircle, Settings2 } from "lucide-react"
+import { Plus, Trash2, Clock, Flame, ChevronRight, X, AlertCircle, Settings2, ChefHat } from "lucide-react"
+
+// === 时间轴刻度逻辑 ===
+// 生成离散的时间点（秒）
+const TIME_STEPS = [
+  // 1-10s (1s step)
+  ...Array.from({ length: 10 }, (_, i) => i + 1),
+  // 15-60s
+  15, 20, 25, 30, 40, 50, 60,
+  // 1m-10m (30s step) -> 90, 120, ... 600
+  ...Array.from({ length: 18 }, (_, i) => 60 + (i + 1) * 30),
+  // 10m-30m (5m step) -> 900, 1200... 1800
+  ...Array.from({ length: 4 }, (_, i) => 600 + (i + 1) * 300),
+  // 30m-2h (10m step) -> 2400... 7200
+  ...Array.from({ length: 9 }, (_, i) => 1800 + (i + 1) * 600),
+  // 2h-5h (30m step) -> 9000... 18000
+  ...Array.from({ length: 6 }, (_, i) => 7200 + (i + 1) * 1800),
+]
+
+const formatDuration = (seconds: number) => {
+  if (seconds < 60) return `${seconds}秒`
+  if (seconds < 3600) {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return s > 0 ? `${m}分${s}秒` : `${m}分钟`
+  }
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  return m > 0 ? `${h}小时${m}分` : `${h}小时`
+}
 
 export function Step3Timeline() {
   const { control } = useFormContext()
@@ -13,54 +42,114 @@ export function Step3Timeline() {
   })
   
   const ingredients = useWatch({ control, name: "ingredients" }) || []
-  
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   
+  // 自动选中新添加的步骤
   const handleAddStep = () => {
     append({
       step_order: fields.length + 1,
       instruction: "新步骤",
       step_type: "cook",
-      duration: 300, // 默认5分钟
+      duration: 60, // 默认1分钟
       is_active: true,
       equipment: "wok",
-      heat_level: "medium"
+      heat_level: "medium",
+      // 临时存储选中的食材ID，用于生成指令
+      _selectedIngredients: [] 
     })
     setSelectedIndex(fields.length)
   }
 
   const selectedStep: any = typeof selectedIndex === 'number' ? fields[selectedIndex] : null
   
+  // 核心逻辑：自动生成指令文本
+  const generateInstruction = (step: any, updates: any = {}) => {
+    const merged = { ...step, ...updates }
+    // 找到动作定义
+    const actionEntry = Object.entries(ACTIONS).find(([key, val]) => val.label === merged._actionLabel)
+    const actionLabel = actionEntry ? actionEntry[1].label : (merged._actionLabel || "操作")
+    
+    // 找到食材名称
+    const selectedIds = merged._selectedIngredients || []
+    const ingredientNames = ingredients
+      .filter((_: any, i: number) => selectedIds.includes(i.toString()))
+      .map((i: any) => i.name)
+      .join("、")
+    
+    if (ingredientNames) {
+      return `${actionLabel} ${ingredientNames}`
+    }
+    return actionLabel
+  }
+
   const updateField = (field: string, value: any) => {
     if (selectedIndex === null) return
+    
+    // 如果更新的是动作或食材，重新生成 instruction
+    let newInstruction = selectedStep.instruction
+    let extraUpdates = {}
+
+    if (field === '_actionLabel') {
+      // 根据 Label 反查 Key 和 Type
+      const entry = Object.entries(ACTIONS).find(([k, v]) => v.label === value)
+      if (entry) {
+        // @ts-ignore
+        extraUpdates.step_type = entry[1].type
+        // @ts-ignore
+        extraUpdates.is_active = entry[1].type !== 'wait'
+      }
+      newInstruction = generateInstruction(selectedStep, { _actionLabel: value })
+    } else if (field === '_selectedIngredients') {
+      newInstruction = generateInstruction(selectedStep, { _selectedIngredients: value })
+    }
+
     // @ts-ignore
-    update(selectedIndex, { ...selectedStep, [field]: value })
+    update(selectedIndex, { 
+      ...selectedStep, 
+      [field]: value, 
+      ...extraUpdates,
+      instruction: (field === '_actionLabel' || field === '_selectedIngredients') ? newInstruction : selectedStep.instruction 
+    })
+  }
+
+  // 找到最接近的时间刻度索引
+  const getSliderIndex = (seconds: number) => {
+    const idx = TIME_STEPS.findIndex(s => s >= seconds)
+    return idx === -1 ? TIME_STEPS.length - 1 : idx
   }
 
   return (
     <div className="flex h-[600px] gap-6 animate-in fade-in duration-500">
       
-      <div className="flex-1 flex flex-col bg-[var(--color-card)] rounded-[var(--radius-theme)] border border-[var(--color-border-theme)] overflow-hidden shadow-sm">
+      {/* ================== 左侧：时间轴流 ================== */}
+      <div 
+        className="flex-1 flex flex-col bg-[var(--color-card)] rounded-[var(--radius-theme)] border border-[var(--color-border-theme)] overflow-hidden shadow-sm"
+        // 1. 点击空白处添加步骤 (如果列表为空)
+        onClick={() => fields.length === 0 && handleAddStep()}
+      >
         <div className="p-4 border-b border-[var(--color-border-theme)] flex justify-between items-center bg-[var(--color-page)]/50">
           <h3 className="font-bold text-[var(--color-main)] flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[var(--color-accent)]" />
             烹饪流程
           </h3>
           <span className="text-xs text-[var(--color-muted)]">
-            {fields.length} 个步骤 · 总耗时 {Math.round(fields.reduce((acc, s: any) => acc + (s.duration || 0), 0) / 60)} 分钟
+            {fields.length} 个步骤 · 总耗时 {formatDuration(fields.reduce((acc, s: any) => acc + (s.duration || 0), 0))}
           </span>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className={`flex-1 overflow-y-auto p-6 space-y-4 ${fields.length === 0 ? 'cursor-pointer hover:bg-[var(--color-page)]/30 transition-colors' : ''}`}>
           {fields.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-[var(--color-muted)]">
-              <Settings2 className="h-12 w-12 mb-4 opacity-20" />
-              <p>点击下方按钮开始构建流程</p>
+              <div className="w-16 h-16 rounded-full bg-[var(--color-accent-light)] flex items-center justify-center mb-4 animate-pulse">
+                <Plus className="h-8 w-8 text-[var(--color-accent)]" />
+              </div>
+              <p className="font-bold">点击任意空白处开始</p>
+              <p className="text-xs opacity-60 mt-1">添加您的第一个烹饪步骤</p>
             </div>
           )}
 
           {fields.map((field: any, index) => (
-            <div key={field.id} className="relative pl-8 group">
+            <div key={field.id} className="relative pl-8 group" onClick={(e) => e.stopPropagation()}>
               {/* 连接线 */}
               {index < fields.length - 1 && (
                 <div className="absolute left-[11px] top-8 bottom-[-16px] w-[2px] bg-[var(--color-border-theme)]" />
@@ -89,12 +178,12 @@ export function Step3Timeline() {
               >
                 <div className="flex justify-between items-start mb-2">
                   <span className="font-bold text-[var(--color-main)]">
-                    {field.instruction || "未命名步骤"}
+                    {field.instruction}
                   </span>
                   <div className="flex items-center gap-2">
                     {field.duration > 0 && (
                       <span className="text-xs font-mono bg-[var(--color-card)] px-1.5 py-0.5 rounded border border-[var(--color-border-theme)]">
-                        {Math.round(field.duration / 60)}m
+                        {formatDuration(field.duration)}
                       </span>
                     )}
                     {selectedIndex === index && (
@@ -126,17 +215,17 @@ export function Step3Timeline() {
             </div>
           ))}
           
-          {/* 添加按钮 */}
-          <button
-            type="button"
-            onClick={handleAddStep}
-            className="ml-8 w-[calc(100%-2rem)] py-3 rounded-lg border-2 border-dashed border-[var(--color-border-theme)] text-[var(--color-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent-light)]/10 transition-all flex items-center justify-center gap-2 group"
-          >
-            <div className="w-6 h-6 rounded-full bg-[var(--color-border-theme)] text-white flex items-center justify-center group-hover:bg-[var(--color-accent)] transition-colors">
-              <Plus className="h-4 w-4" />
-            </div>
-            <span className="font-medium">添加下一个步骤</span>
-          </button>
+          {/* 添加按钮 (如果有步骤才显示，否则用空白点击) */}
+          {fields.length > 0 && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleAddStep(); }}
+              className="ml-8 w-[calc(100%-2rem)] py-3 rounded-lg border-2 border-dashed border-[var(--color-border-theme)] text-[var(--color-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent-light)]/10 transition-all flex items-center justify-center gap-2 group"
+            >
+              <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" />
+              <span className="font-medium">添加下一步</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -156,7 +245,7 @@ export function Step3Timeline() {
 
             <div className="flex-1 overflow-y-auto p-6 space-y-8">
               
-              {/* 1. 核心动作 */}
+              {/* 1. 核心动作 (必选) */}
               <div>
                 <label className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-3 block">核心动作</label>
                 <div className="grid grid-cols-4 gap-2">
@@ -164,13 +253,9 @@ export function Step3Timeline() {
                     <button
                       key={key}
                       type="button"
-                      onClick={() => {
-                        updateField('instruction', def.label)
-                        // @ts-ignore
-                        updateField('step_type', def.type)
-                      }}
+                      onClick={() => updateField('_actionLabel', def.label)}
                       className={`flex flex-col items-center justify-center p-2 rounded border transition-all
-                        ${selectedStep.instruction.includes(def.label) 
+                        ${selectedStep.instruction.startsWith(def.label) // 简单的选中判断
                           ? 'bg-[var(--color-accent-light)] border-[var(--color-accent)] text-[var(--color-accent)]' 
                           : 'bg-[var(--color-page)] border-[var(--color-border-theme)] hover:border-[var(--color-accent)]'}
                       `}
@@ -182,50 +267,70 @@ export function Step3Timeline() {
                 </div>
               </div>
 
-              {/* 2. 指令与对象 */}
+              {/* 2. 链接食材 (多选) */}
               <div>
-                <label className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-3 block">指令内容</label>
-                <input
-                  value={selectedStep.instruction}
-                  onChange={(e) => updateField('instruction', e.target.value)}
-                  className="w-full px-3 py-2 rounded bg-[var(--color-page)] border border-[var(--color-border-theme)] text-[var(--color-main)] text-sm font-medium focus:ring-2 focus:ring-[var(--color-accent)] outline-none"
-                  placeholder="例如：切洋葱"
-                />
-                
-                {/* 快捷插入食材 */}
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {ingredients.map((ing: any) => (
-                    <button
-                      key={ing.name}
-                      type="button"
-                      onClick={() => updateField('instruction', selectedStep.instruction + " " + ing.name)}
-                      className="px-2 py-1 rounded-full bg-[var(--color-page)] border border-[var(--color-border-theme)] text-xs text-[var(--color-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors"
-                    >
-                      + {ing.name}
-                    </button>
-                  ))}
+                <label className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-3 block">链接食材</label>
+                <div className="flex flex-wrap gap-2">
+                  {ingredients.length > 0 ? ingredients.map((ing: any, idx: number) => {
+                    const isSelected = (selectedStep._selectedIngredients || []).includes(idx.toString())
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          const current = selectedStep._selectedIngredients || []
+                          const next = current.includes(idx.toString())
+                            ? current.filter((i: string) => i !== idx.toString())
+                            : [...current, idx.toString()]
+                          updateField('_selectedIngredients', next)
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-sm border transition-all ${
+                          isSelected 
+                            ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)]' 
+                            : 'bg-[var(--color-page)] text-[var(--color-main)] border-[var(--color-border-theme)] hover:border-[var(--color-accent)]'
+                        }`}
+                      >
+                        {ing.name}
+                      </button>
+                    )
+                  }) : (
+                    <span className="text-sm text-[var(--color-muted)]">暂无食材，请先在上一步添加</span>
+                  )}
                 </div>
               </div>
 
-              {/* 3. 时长 */}
+              {/* 2.5 指令预览 (只读) */}
+              <div className="p-3 bg-[var(--color-page)] rounded border border-[var(--color-border-theme)]">
+                <span className="text-xs text-[var(--color-muted)] block mb-1">指令预览</span>
+                <p className="text-sm font-bold text-[var(--color-main)]">
+                  {selectedStep.instruction}
+                </p>
+              </div>
+
+              {/* 3. 耗时 (非线性滑块) */}
               <div>
                 <label className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-3 block">预计耗时</label>
-                <div className="flex items-center gap-4">
-                  <div className="relative flex-1">
-                    <input
-                      type="range" min="0" max="60" step="1"
-                      value={selectedStep.duration / 60}
-                      onChange={(e) => updateField('duration', e.target.valueAsNumber * 60)}
-                      className="w-full accent-[var(--color-accent)]"
-                    />
-                  </div>
-                  <div className="w-16 text-right font-mono font-bold text-[var(--color-accent)]">
-                    {Math.round(selectedStep.duration / 60)}m
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="range" 
+                    min="0" 
+                    max={TIME_STEPS.length - 1} 
+                    step="1"
+                    value={getSliderIndex(selectedStep.duration)}
+                    onChange={(e) => updateField('duration', TIME_STEPS[e.target.valueAsNumber])}
+                    className="w-full accent-[var(--color-accent)]"
+                  />
+                  <div className="flex justify-between text-xs text-[var(--color-muted)] font-mono">
+                    <span>1s</span>
+                    <span className="text-[var(--color-accent)] font-bold text-base">
+                      {formatDuration(selectedStep.duration)}
+                    </span>
+                    <span>5h</span>
                   </div>
                 </div>
               </div>
 
-              {/* 4. 环境配置 (设备/火力) */}
+              {/* 4. 环境配置 */}
               <div>
                 <label className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-3 block">环境配置</label>
                 <div className="space-y-3">
@@ -257,3 +362,4 @@ export function Step3Timeline() {
     </div>
   )
 }
+
