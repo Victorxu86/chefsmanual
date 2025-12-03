@@ -60,15 +60,19 @@ export default function CreateRecipePage() {
   const onError = (errors: any) => {
     console.error("Form validation errors:", errors)
     
-    // 简单的逻辑：如果有错误，跳转到第一个有错误的步骤
     if (errors.title || errors.description || errors.servings) {
-      alert("请完善基本信息")
+      alert(`基本信息有误: ${errors.title?.message || errors.description?.message || ''}`)
       setCurrentStep(1)
     } else if (errors.ingredients) {
-      alert("请检查食材清单")
+      alert("食材清单有误，请检查是否所有必填项已填")
       setCurrentStep(2)
     } else if (errors.steps) {
-      alert("请检查烹饪流程")
+      // 获取具体的步骤错误信息
+      const stepErrors = Array.isArray(errors.steps) 
+        ? errors.steps.map((e: any, i: number) => e ? `步骤${i+1}: ${Object.values(e).map((err: any) => err.message).join(', ')}` : null).filter(Boolean)
+        : [errors.steps.message];
+        
+      alert(`烹饪流程校验失败:\n${stepErrors.join('\n')}`)
       setCurrentStep(3)
     } else {
       alert("表单填写有误，请检查红色提示项")
@@ -157,7 +161,6 @@ export default function CreateRecipePage() {
               ) : (
                 <button
                   type="button"
-                  // 关键修复：添加 onError 回调
                   onClick={methods.handleSubmit(onSubmit, onError)}
                   disabled={isSubmitting}
                   className="px-8 py-2 rounded-[var(--radius-theme)] bg-[var(--color-accent)] text-white font-bold hover:opacity-90 transition-all flex items-center gap-2"
