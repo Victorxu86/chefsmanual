@@ -71,6 +71,7 @@ export const INGREDIENT_CATEGORIES = [
   { value: "grain", label: "谷物/主食" },
   { value: "spice", label: "调料/香料" },
   { value: "dairy", label: "乳制品" },
+  { value: "fruit", label: "水果" }, // 新增水果分类
   { value: "other", label: "其他" },
 ] as const
 
@@ -90,37 +91,21 @@ export const INGREDIENT_UNITS = [
   { value: "taste", label: "按口味", type: "vague" },
 ] as const
 
-export const SHAPES = [
-  { value: "slice", label: "片" },
-  { value: "strip", label: "丝" },
-  { value: "cube", label: "丁/块" },
-  { value: "mince", label: "末/蓉" },
-  { value: "chunk", label: "滚刀块" },
-  { value: "ring", label: "圈" },
-  { value: "flower", label: "花刀" },
-  { value: "segment", label: "段" },
-  { value: "whole", label: "整只" },
-] as const
-
-// === 全量动作体系 (Complete Action Hierarchy) ===
-
+// ... (ACTION_HIERARCHY 保持不变)
 export type ActionDefinition = {
   id: string
   label: string
-  icon: string // 虽然你说可以不用emoji，但在UI上做分类标识还是很有用的，我会简化使用
+  icon: string
   type: "prep" | "cook" | "wait" | "serve"
-  params: string[] // "ingredient", "ingredients", "heat", "tool", "duration", "shape", "condiment", "temp"
-  forcePassive?: boolean // 新增：强制标记为被动 (不占人手)
+  params: string[]
+  forcePassive?: boolean
 }
 
-// 辅助生成函数
 const createAction = (label: string, type: ActionDefinition['type'], params: string[], icon: string = "•", forcePassive: boolean = false): ActionDefinition => {
-  // 简单的 ID 生成逻辑 (实际项目可能需要更严谨的 ID)
   const id = label
   return { id, label, type, params, icon, forcePassive }
 }
 
-// 定义层级结构
 export const ACTION_HIERARCHY = [
   {
     id: "heat",
@@ -332,10 +317,8 @@ export const ACTION_HIERARCHY = [
   }
 ] as const
 
-// 扁平化的动作映射表 (用于快速查找)
 export const ACTIONS: Record<string, ActionDefinition> = {}
 
-// Populate the flat ACTIONS map
 // @ts-ignore
 ACTION_HIERARCHY.forEach(realm => {
   // @ts-ignore
@@ -343,7 +326,7 @@ ACTION_HIERARCHY.forEach(realm => {
     // @ts-ignore
     category.actions.forEach(action => {
       // @ts-ignore
-      ACTIONS[action.label] = action // Use label as ID for easier matching if needed, or use generated ID
+      ACTIONS[action.label] = action
       // @ts-ignore
       ACTIONS[action.id] = action
     })
