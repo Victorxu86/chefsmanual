@@ -71,7 +71,7 @@ export const INGREDIENT_CATEGORIES = [
   { value: "grain", label: "谷物/主食" },
   { value: "spice", label: "调料/香料" },
   { value: "dairy", label: "乳制品" },
-  { value: "fruit", label: "水果" }, // 新增水果分类
+  { value: "fruit", label: "水果" }, // 添加水果分类
   { value: "other", label: "其他" },
 ] as const
 
@@ -91,7 +91,20 @@ export const INGREDIENT_UNITS = [
   { value: "taste", label: "按口味", type: "vague" },
 ] as const
 
-// ... (ACTION_HIERARCHY 保持不变)
+export const SHAPES = [
+  { value: "slice", label: "片" },
+  { value: "strip", label: "丝" },
+  { value: "cube", label: "丁/块" },
+  { value: "mince", label: "末/蓉" },
+  { value: "chunk", label: "滚刀块" },
+  { value: "ring", label: "圈" },
+  { value: "flower", label: "花刀" },
+  { value: "segment", label: "段" },
+  { value: "whole", label: "整只" },
+] as const
+
+// === 全量动作体系 (Complete Action Hierarchy) ===
+
 export type ActionDefinition = {
   id: string
   label: string
@@ -106,6 +119,7 @@ const createAction = (label: string, type: ActionDefinition['type'], params: str
   return { id, label, type, params, icon, forcePassive }
 }
 
+// ... ACTION_HIERARCHY 保持不变，因为已经更新过了 ...
 export const ACTION_HIERARCHY = [
   {
     id: "heat",
