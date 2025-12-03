@@ -6,7 +6,8 @@ import {
   STEP_TYPES, 
   ATTENTION_LEVELS,
   EQUIPMENT,
-  HEAT_LEVELS 
+  HEAT_LEVELS,
+  RECIPE_CATEGORIES 
 } from "./constants"
 
 // 提取常量的值作为 Enum
@@ -15,6 +16,7 @@ const DifficultyEnum = z.enum(DIFFICULTIES.map(d => d.value) as [string, ...stri
 const StepTypeEnum = z.enum(STEP_TYPES.map(t => t.value) as [string, ...string[]]);
 const AttentionEnum = z.enum(ATTENTION_LEVELS.map(a => a.value) as [string, ...string[]]);
 const IngredientCategoryEnum = z.enum(INGREDIENT_CATEGORIES.map(c => c.value) as [string, ...string[]]);
+const RecipeCategoryEnum = z.enum(RECIPE_CATEGORIES.map(c => c.value) as [string, ...string[]]);
 
 // 辅助函数：将空字符串转换为 undefined
 const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val);
@@ -75,6 +77,7 @@ export const recipeSchema = z.object({
   cover_image: z.string().optional(),
   
   cuisine: z.preprocess(emptyToUndefined, CuisineEnum.optional()),
+  category: z.preprocess(emptyToUndefined, RecipeCategoryEnum.default("main")), // 新增：菜品类别
   difficulty: z.preprocess(emptyToUndefined, DifficultyEnum.default("medium")),
   servings: z.preprocess(safeNumber, z.number().min(1).default(2)),
   

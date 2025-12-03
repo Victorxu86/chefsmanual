@@ -2,13 +2,12 @@
 
 import { useFormContext, useController } from "react-hook-form"
 import { RecipeFormValues } from "@/lib/schemas"
-import { CUISINES, DIFFICULTIES } from "@/lib/constants"
+import { CUISINES, DIFFICULTIES, RECIPE_CATEGORIES } from "@/lib/constants"
 import { ImageUpload } from "@/components/ui/ImageUpload"
 
 export function Step1Meta() {
   const { register, control, formState: { errors } } = useFormContext<RecipeFormValues>()
   
-  // 使用 useController 来管理 cover_image，因为它不是标准的 input
   const { field: coverImageField } = useController({
     name: "cover_image",
     control,
@@ -55,7 +54,7 @@ export function Step1Meta() {
         </div>
 
         {/* 选项网格 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* 菜系 */}
           <div>
             <label className="block text-sm font-medium text-[var(--color-main)] mb-1">菜系</label>
@@ -65,6 +64,20 @@ export function Step1Meta() {
             >
               <option value="">选择菜系...</option>
               {CUISINES.map(c => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 类别 (新增) */}
+          <div>
+            <label className="block text-sm font-medium text-[var(--color-main)] mb-1">类别 (用于智能调度)</label>
+            <select
+              {...register("category")}
+              className="w-full px-4 py-2 rounded-[var(--radius-theme)] bg-[var(--color-page)] border border-[var(--color-border-theme)] focus:ring-2 focus:ring-[var(--color-accent)] outline-none transition-all"
+            >
+              <option value="">选择类别...</option>
+              {RECIPE_CATEGORIES.map(c => (
                 <option key={c.value} value={c.value}>{c.label}</option>
               ))}
             </select>

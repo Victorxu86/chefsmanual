@@ -33,6 +33,7 @@ export async function createRecipe(formData: any) {
       cover_image: data.cover_image,
       author_id: user.id,
       cuisine: data.cuisine,
+      category: data.category,
       difficulty: data.difficulty,
       servings: data.servings,
       is_public: data.is_public,

@@ -1,5 +1,14 @@
 // 预设字典库
 
+export const RECIPE_CATEGORIES = [
+  { value: "main", label: "热菜/主菜", description: "必须对齐开饭时间" },
+  { value: "staple", label: "主食", description: "通常可保温" },
+  { value: "soup", label: "汤/炖菜", description: "可提前完成，保温" },
+  { value: "cold", label: "凉菜", description: "可提前很久完成" },
+  { value: "dessert", label: "甜品", description: "饭后食用" },
+  { value: "drink", label: "饮品", description: "随时" },
+] as const
+
 export const CUISINES = [
   { value: "chinese", label: "中餐" },
   { value: "western", label: "西餐" },
@@ -98,14 +107,15 @@ export const SHAPES = [
 export type ActionDefinition = {
   id: string
   label: string
-  icon: string
+  icon: string // 虽然你说可以不用emoji，但在UI上做分类标识还是很有用的，我会简化使用
   type: "prep" | "cook" | "wait" | "serve"
-  params: string[]
+  params: string[] // "ingredient", "ingredients", "heat", "tool", "duration", "shape", "condiment", "temp"
   forcePassive?: boolean // 新增：强制标记为被动 (不占人手)
 }
 
 // 辅助生成函数
 const createAction = (label: string, type: ActionDefinition['type'], params: string[], icon: string = "•", forcePassive: boolean = false): ActionDefinition => {
+  // 简单的 ID 生成逻辑 (实际项目可能需要更严谨的 ID)
   const id = label
   return { id, label, type, params, icon, forcePassive }
 }

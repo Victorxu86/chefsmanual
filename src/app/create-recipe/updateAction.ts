@@ -32,6 +32,7 @@ export async function updateRecipe(id: string, formData: any) {
       description: data.description,
       cover_image: data.cover_image,
       cuisine: data.cuisine,
+      category: data.category,
       difficulty: data.difficulty,
       servings: data.servings,
       is_public: data.is_public,

@@ -38,6 +38,7 @@ export function RecipeWizard({ initialData, isEditMode = false }: RecipeWizardPr
     cover_image: initialData.cover_image || "",
     servings: initialData.servings,
     difficulty: initialData.difficulty,
+    category: initialData.category || "main",
     cuisine: initialData.cuisine,
     is_public: initialData.is_public,
     ingredients: initialData.recipe_ingredients || [],
@@ -56,6 +57,7 @@ export function RecipeWizard({ initialData, isEditMode = false }: RecipeWizardPr
     cover_image: "",
     servings: 2,
     difficulty: "medium",
+    category: "main",
     is_public: false,
     ingredients: [],
     steps: []
