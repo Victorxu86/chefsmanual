@@ -37,8 +37,18 @@ export function Step3Timeline() {
   const ingredients = useWatch({ control, name: "ingredients" }) || []
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   
-  // 动作选择器状态：当前选中的 Realm ID (一级分类)
-  const [activeRealmId, setActiveRealmId] = useState<string>(ACTION_HIERARCHY[0].id)
+  // 动作选择器状态：当前选中的 Realm ID 和 Category ID
+  const [activeRealmId, setActiveRealmId] = useState<string | null>(null)
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null)
+
+  // 当切换步骤时，重置选择器状态，或者尝试根据已有数据回填
+  useEffect(() => {
+    if (selectedIndex !== null) {
+      // 这里可以做一些回填逻辑，但为了简单先重置
+      // setActiveRealmId(null)
+      // setActiveCategoryId(null)
+    }
+  }, [selectedIndex])
 
   const handleAddStep = () => {
     append({
@@ -52,6 +62,8 @@ export function Step3Timeline() {
       _selectedIngredients: [] 
     })
     setSelectedIndex(fields.length)
+    setActiveRealmId(ACTION_HIERARCHY[0].id) // 默认选中第一个大类
+    setActiveCategoryId(null)
   }
 
   const selectedStep: any = typeof selectedIndex === 'number' ? fields[selectedIndex] : null
@@ -112,61 +124,92 @@ export function Step3Timeline() {
     return idx === -1 ? TIME_STEPS.length - 1 : idx
   }
 
-  // 渲染右侧面板内容
+  // === 全新设计的 Action Picker ===
   const renderActionPicker = () => {
     const currentRealm = ACTION_HIERARCHY.find(r => r.id === activeRealmId)
+    const currentCategory = currentRealm?.categories.find(c => c.id === activeCategoryId)
     
     return (
-      <div className="space-y-4">
-        {/* 1. Realm Tabs (一级分类) */}
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          {ACTION_HIERARCHY.map((realm) => (
-            <button
-              key={realm.id}
-              type="button"
-              onClick={() => setActiveRealmId(realm.id)}
-              className={`
-                flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all
-                ${activeRealmId === realm.id 
-                  ? 'bg-[var(--color-accent)] text-white shadow-md' 
-                  : 'bg-[var(--color-page)] text-[var(--color-muted)] border border-[var(--color-border-theme)] hover:border-[var(--color-accent)]'}
-              `}
-            >
-              <span>{realm.icon}</span>
-              <span>{realm.label.split('/')[0]}</span>
-            </button>
-          ))}
+      <div className="space-y-6">
+        
+        {/* Level 1: Realms (Horizontal Icons) */}
+        <div>
+          <label className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-2 block">第一步：选择领域</label>
+          <div className="flex justify-between gap-2 bg-[var(--color-page)] p-1 rounded-[var(--radius-theme)] border border-[var(--color-border-theme)]">
+            {ACTION_HIERARCHY.map((realm) => {
+              const isActive = activeRealmId === realm.id
+              return (
+                <button
+                  key={realm.id}
+                  type="button"
+                  onClick={() => { setActiveRealmId(realm.id); setActiveCategoryId(null); }}
+                  className={`
+                    flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-md transition-all duration-300 relative
+                    ${isActive 
+                      ? 'bg-white text-[var(--color-accent)] shadow-sm scale-105 z-10' 
+                      : 'text-[var(--color-muted)] hover:text-[var(--color-main)] hover:bg-black/5'}
+                  `}
+                >
+                  <span className="text-xl mb-1">{realm.icon}</span>
+                  <span className="text-[10px] font-bold scale-90">{realm.label.split('/')[0]}</span>
+                  {isActive && <div className="absolute -bottom-1 w-1 h-1 rounded-full bg-[var(--color-accent)]" />}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
-        {/* 2. Categories & Actions (二级分类 + 动作) */}
-        <div className="space-y-6 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
-          {currentRealm?.categories.map((cat) => (
-            <div key={cat.id}>
-              <h5 className="text-xs font-bold text-[var(--color-muted)] mb-2 flex items-center gap-2">
-                <span className="w-1 h-3 bg-[var(--color-border-theme)] rounded-full" />
-                {cat.label}
-              </h5>
-              <div className="grid grid-cols-3 gap-2">
-                {cat.actions.map((action) => (
-                  <button
-                    key={action.id}
-                    type="button"
-                    onClick={() => updateField('_actionKey', action.id)}
-                    className={`
-                      flex flex-col items-center justify-center p-2 rounded border transition-all min-h-[60px]
-                      ${selectedStep._actionKey === action.id
-                        ? 'bg-[var(--color-accent-light)] border-[var(--color-accent)] text-[var(--color-accent)] shadow-sm' 
-                        : 'bg-[var(--color-page)] border-[var(--color-border-theme)] hover:border-[var(--color-accent)] hover:shadow-sm'}
-                    `}
-                  >
-                    <span className="text-lg mb-1">{action.icon}</span>
-                    <span className="text-[10px] text-center leading-tight scale-90">{action.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
+        {/* Level 2: Categories (Flowing Tags) */}
+        <div className={`transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] overflow-hidden ${activeRealmId ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+          <label className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-2 block">第二步：选择类别</label>
+          <div className="flex flex-wrap gap-2">
+            {currentRealm?.categories.map((cat) => {
+              const isActive = activeCategoryId === cat.id
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setActiveCategoryId(cat.id)}
+                  className={`
+                    px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 border
+                    ${isActive 
+                      ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)] shadow-md transform -translate-y-0.5' 
+                      : 'bg-[var(--color-card)] text-[var(--color-muted)] border-[var(--color-border-theme)] hover:border-[var(--color-accent)] hover:text-[var(--color-main)]'}
+                  `}
+                >
+                  {cat.label}
+                </button>
+              )
+            })}
+          </div>
         </div>
+
+        {/* Level 3: Actions (Clean Grid) */}
+        <div className={`transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] overflow-hidden ${activeCategoryId ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+          <label className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-2 block">第三步：具体动作</label>
+          <div className="grid grid-cols-3 gap-2 pb-1">
+            {currentCategory?.actions.map((action) => {
+              const isSelected = selectedStep?._actionKey === action.id
+              return (
+                <button
+                  key={action.id}
+                  type="button"
+                  onClick={() => updateField('_actionKey', action.id)}
+                  className={`
+                    relative py-3 px-2 rounded-[var(--radius-theme)] text-xs font-bold transition-all duration-200 border text-center
+                    ${isSelected
+                      ? 'bg-[var(--color-accent-light)] border-[var(--color-accent)] text-[var(--color-accent)] ring-1 ring-[var(--color-accent)]' 
+                      : 'bg-[var(--color-card)] border-[var(--color-border-theme)] text-[var(--color-main)] hover:border-[var(--color-accent)] hover:bg-[var(--color-page)]'}
+                  `}
+                >
+                  {action.label}
+                  {isSelected && <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[var(--color-accent)]" />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
       </div>
     )
   }
@@ -299,11 +342,8 @@ export function Step3Timeline() {
 
             <div className="flex-1 overflow-y-auto p-6 space-y-8">
               
-              {/* 1. 动作选择器 (Tabs + Grid) */}
-              <div>
-                <label className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-3 block">核心动作</label>
-                {renderActionPicker()}
-              </div>
+              {/* 1. 动作选择器 (Updated Flowing Ribbon UI) */}
+              {renderActionPicker()}
 
               {/* 2. 动态参数 (只在选中 Action 后显示) */}
               {currentActionDef && (
@@ -312,7 +352,7 @@ export function Step3Timeline() {
                   {/* 食材选择 */}
                   {(currentActionDef.params as string[]).includes("ingredients") || (currentActionDef.params as string[]).includes("ingredient") ? (
                     <div>
-                      <label className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-3 block">选择食材</label>
+                      <label className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-2 block">选择食材</label>
                       <div className="flex flex-wrap gap-2">
                         {ingredients.length > 0 ? ingredients.map((ing: any, idx: number) => {
                           const isSelected = (selectedStep._selectedIngredients || []).includes(idx.toString())
@@ -327,9 +367,9 @@ export function Step3Timeline() {
                                   : [...current, idx.toString()]
                                 updateField('_selectedIngredients', next)
                               }}
-                              className={`px-3 py-1.5 rounded-full text-sm border transition-all ${
+                              className={`px-3 py-1.5 rounded-full text-xs border transition-all ${
                                 isSelected 
-                                  ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)]' 
+                                  ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)] shadow-sm' 
                                   : 'bg-[var(--color-page)] text-[var(--color-main)] border-[var(--color-border-theme)] hover:border-[var(--color-accent)]'
                               }`}
                             >
@@ -337,15 +377,15 @@ export function Step3Timeline() {
                             </button>
                           )
                         }) : (
-                          <span className="text-sm text-[var(--color-muted)]">暂无食材</span>
+                          <span className="text-xs text-[var(--color-muted)]">暂无食材</span>
                         )}
                       </div>
                     </div>
                   ) : null}
 
                   {/* 指令预览 */}
-                  <div className="p-3 bg-[var(--color-page)] rounded border border-[var(--color-border-theme)]">
-                    <span className="text-xs text-[var(--color-muted)] block mb-1">指令预览</span>
+                  <div className="p-3 bg-[var(--color-page)]/50 rounded border border-[var(--color-border-theme)]">
+                    <span className="text-[10px] text-[var(--color-muted)] uppercase tracking-wider block mb-1">预览</span>
                     <p className="text-sm font-bold text-[var(--color-main)]">
                       {selectedStep.instruction}
                     </p>
@@ -353,7 +393,7 @@ export function Step3Timeline() {
 
                   {/* 时长滑块 */}
                   <div>
-                    <label className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-3 block">耗时</label>
+                    <label className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-2 block">预计耗时</label>
                     <div className="flex flex-col gap-2">
                       <input
                         type="range" 
@@ -362,11 +402,11 @@ export function Step3Timeline() {
                         step="1"
                         value={getSliderIndex(selectedStep.duration)}
                         onChange={(e) => updateField('duration', TIME_STEPS[e.target.valueAsNumber])}
-                        className="w-full accent-[var(--color-accent)]"
+                        className="w-full accent-[var(--color-accent)] cursor-pointer"
                       />
-                      <div className="flex justify-between text-xs text-[var(--color-muted)] font-mono">
+                      <div className="flex justify-between text-[10px] text-[var(--color-muted)] font-mono">
                         <span>1s</span>
-                        <span className="text-[var(--color-accent)] font-bold text-base">
+                        <span className="text-[var(--color-accent)] font-bold text-sm">
                           {formatDuration(selectedStep.duration)}
                         </span>
                         <span>5h</span>
@@ -378,11 +418,11 @@ export function Step3Timeline() {
                   <div className="grid grid-cols-2 gap-4">
                     {(currentActionDef.params as string[]).includes("tool") && (
                       <div>
-                        <label className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-2 block">设备</label>
+                        <label className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-2 block">设备</label>
                         <select
                           value={selectedStep.equipment || ""}
                           onChange={(e) => updateField('equipment', e.target.value)}
-                          className="w-full px-3 py-2 rounded bg-[var(--color-page)] border border-[var(--color-border-theme)] text-sm"
+                          className="w-full px-3 py-2 rounded bg-[var(--color-page)] border border-[var(--color-border-theme)] text-xs"
                         >
                           <option value="">选择...</option>
                           {EQUIPMENT.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
@@ -391,11 +431,11 @@ export function Step3Timeline() {
                     )}
                     {(currentActionDef.params as string[]).includes("heat") && (
                       <div>
-                        <label className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-2 block">火力</label>
+                        <label className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-2 block">火力</label>
                         <select
                           value={selectedStep.heat_level || ""}
                           onChange={(e) => updateField('heat_level', e.target.value)}
-                          className="w-full px-3 py-2 rounded bg-[var(--color-page)] border border-[var(--color-border-theme)] text-sm"
+                          className="w-full px-3 py-2 rounded bg-[var(--color-page)] border border-[var(--color-border-theme)] text-xs"
                         >
                           <option value="">选择...</option>
                           {HEAT_LEVELS.map(h => <option key={h.value} value={h.value}>{h.label}</option>)}
