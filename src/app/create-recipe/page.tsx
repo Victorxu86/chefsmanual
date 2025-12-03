@@ -9,8 +9,8 @@ import { DashboardHeader } from "@/components/DashboardHeader"
 import { useMode } from "@/context/ModeContext"
 import { Step1Meta } from "./steps/Step1Meta"
 import { Step2Ingredients } from "./steps/Step2Ingredients"
-import { Step3Timeline } from "./steps/Step3Timeline" // 使用新组件
-import { Save, ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react"
+import { Step3Timeline } from "./steps/Step3Timeline"
+import { Save, ArrowLeft, ArrowRight, CheckCircle2, AlertTriangle } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 const STEPS = [
@@ -53,6 +53,25 @@ export default function CreateRecipePage() {
       alert("发生错误: " + (error.message || "未知错误"))
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  // 错误处理回调
+  const onError = (errors: any) => {
+    console.error("Form validation errors:", errors)
+    
+    // 简单的逻辑：如果有错误，跳转到第一个有错误的步骤
+    if (errors.title || errors.description || errors.servings) {
+      alert("请完善基本信息")
+      setCurrentStep(1)
+    } else if (errors.ingredients) {
+      alert("请检查食材清单")
+      setCurrentStep(2)
+    } else if (errors.steps) {
+      alert("请检查烹饪流程")
+      setCurrentStep(3)
+    } else {
+      alert("表单填写有误，请检查红色提示项")
     }
   }
 
@@ -106,7 +125,6 @@ export default function CreateRecipePage() {
         </div>
 
         <FormProvider {...methods}>
-          {/* 关键：阻止默认的表单提交 */}
           <form 
             onSubmit={(e) => e.preventDefault()} 
             className="space-y-8"
@@ -139,8 +157,8 @@ export default function CreateRecipePage() {
               ) : (
                 <button
                   type="button"
-                  // 只有最后一步的按钮才触发 handleSubmit
-                  onClick={methods.handleSubmit(onSubmit)}
+                  // 关键修复：添加 onError 回调
+                  onClick={methods.handleSubmit(onSubmit, onError)}
                   disabled={isSubmitting}
                   className="px-8 py-2 rounded-[var(--radius-theme)] bg-[var(--color-accent)] text-white font-bold hover:opacity-90 transition-all flex items-center gap-2"
                 >
