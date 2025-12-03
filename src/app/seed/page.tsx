@@ -100,7 +100,7 @@ const RECIPES = [
       { instruction: "芒果打泥", duration: 120, step_type: "prep", is_active: true, equipment: "blender" },
       { instruction: "混合芒果泥和椰浆", duration: 120, step_type: "prep", is_active: true, equipment: "bowl" },
       { instruction: "加入西米和柚子", duration: 60, step_type: "prep", is_active: true, equipment: "bowl" },
-      { instruction: "冷藏静置", duration: 1800, step_type: "wait", is_active: false, equipment: "refrigerator" }
+      { instruction: "冷藏静置", duration: 1800, step_type: "wait", is_active: false, equipment: "refrigerator" } // refrigerator不在enum里，可能报错
     ]
   }
 ]
@@ -142,16 +142,31 @@ async function seedAction() {
       ...ing,
       display_order: idx
     }))
-    await supabase.from('recipe_ingredients').insert(ingredients)
+    
+    const { error: iError } = await supabase.from('recipe_ingredients').insert(ingredients)
+    if (iError) console.error("Ingredient Error for " + recipeData.title, iError)
 
     // 3. Insert Steps
-    const steps = recipeData.steps.map((step, idx) => ({
-      recipe_id: recipe.id,
-      step_order: idx + 1,
-      duration_seconds: step.duration,
-      ...step
-    }))
-    await supabase.from('recipe_steps').insert(steps)
+    const steps = recipeData.steps.map((step, idx) => {
+      // Clean up object to match schema
+      // 移除不属于 schema 的字段 (duration is mapped to duration_seconds)
+      const { duration, ...rest } = step
+      
+      return {
+        recipe_id: recipe.id,
+        step_order: idx + 1,
+        duration_seconds: duration,
+        ...rest
+      }
+    })
+    
+    const { error: sError } = await supabase.from('recipe_steps').insert(steps)
+    if (sError) {
+      console.error("Step Error for " + recipeData.title, sError)
+      // 如果步骤插入失败，我们应该把刚才创建的空壳菜谱删掉，避免污染
+      await supabase.from('recipes').delete().eq('id', recipe.id)
+      throw new Error(`Steps insertion failed: ${sError.message}`)
+    }
   }
 
   revalidatePath('/recipes')
@@ -160,7 +175,8 @@ async function seedAction() {
 
 export default function SeedPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center flex-col gap-4">
+      <h1 className="text-2xl font-bold">测试数据填充</h1>
       <form action={seedAction}>
         <button 
           type="submit"
@@ -169,7 +185,7 @@ export default function SeedPage() {
           🚀 生成 4 道预制菜谱
         </button>
       </form>
+      <p className="text-sm text-gray-500">请查看 Vercel Logs 以获取详细错误信息</p>
     </div>
   )
 }
-
