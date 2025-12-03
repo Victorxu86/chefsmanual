@@ -67,7 +67,6 @@ export default function CreateRecipePage() {
       alert("食材清单有误，请检查是否所有必填项已填")
       setCurrentStep(2)
     } else if (errors.steps) {
-      // 获取具体的步骤错误信息
       const stepErrors = Array.isArray(errors.steps) 
         ? errors.steps.map((e: any, i: number) => e ? `步骤${i+1}: ${Object.values(e).map((err: any) => err.message).join(', ')}` : null).filter(Boolean)
         : [errors.steps.message];
@@ -94,6 +93,14 @@ export default function CreateRecipePage() {
 
   const handlePrev = () => {
     setCurrentStep(prev => Math.max(prev - 1, 1))
+  }
+
+  // 拦截回车提交 (恢复这个函数以确保 Step 2 正常工作)
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    // 仅在 Step 2 且不是 textarea 时阻止，让 Step2Ingredients 自己处理
+    if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+      e.preventDefault()
+    }
   }
 
   return (
@@ -131,6 +138,7 @@ export default function CreateRecipePage() {
         <FormProvider {...methods}>
           <form 
             onSubmit={(e) => e.preventDefault()} 
+            onKeyDown={handleKeyDown}
             className="space-y-8"
           >
             
