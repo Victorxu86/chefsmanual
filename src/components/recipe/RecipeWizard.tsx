@@ -61,7 +61,7 @@ export function RecipeWizard({ initialData, isEditMode = false }: RecipeWizardPr
 
   const methods = useForm({
     resolver: zodResolver(recipeSchema),
-    defaultValues
+    defaultValues: defaultValues as any
   })
 
   const onSubmit = async (data: any) => {
