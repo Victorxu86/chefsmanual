@@ -116,10 +116,10 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
             </div>
 
             <div className="flex flex-wrap gap-8">
-              <ResourceControl label="可用炉头" icon={<Flame className="h-5 w-5" />} value={resources.stove} onChange={n => setResources(p => ({...p, stove: n}))} max={4} color="orange" />
-              <ResourceControl label="烤箱/蒸箱" icon={<Box className="h-5 w-5" />} value={resources.oven} onChange={n => setResources(p => ({...p, oven: n}))} max={2} color="blue" />
-              <ResourceControl label="砧板数量" icon={<Square className="h-5 w-5" />} value={resources.board} onChange={n => setResources(p => ({...p, board: n}))} max={2} color="green" />
-              <ResourceControl label="料理碗" icon={<Soup className="h-5 w-5" />} value={resources.bowl} onChange={n => setResources(p => ({...p, bowl: n}))} max={4} color="purple" />
+              <ResourceControl label="可用炉头" icon={<Flame className="h-5 w-5" />} value={resources.stove} onChange={(n: number) => setResources(p => ({...p, stove: n}))} max={4} color="orange" />
+              <ResourceControl label="烤箱/蒸箱" icon={<Box className="h-5 w-5" />} value={resources.oven} onChange={(n: number) => setResources(p => ({...p, oven: n}))} max={2} color="blue" />
+              <ResourceControl label="砧板数量" icon={<Square className="h-5 w-5" />} value={resources.board} onChange={(n: number) => setResources(p => ({...p, board: n}))} max={2} color="green" />
+              <ResourceControl label="料理碗" icon={<Soup className="h-5 w-5" />} value={resources.bowl} onChange={(n: number) => setResources(p => ({...p, bowl: n}))} max={4} color="purple" />
             </div>
           </div>
         )}
