@@ -30,6 +30,7 @@ export async function updateRecipe(id: string, formData: any) {
     .update({
       title: data.title,
       description: data.description,
+      cover_image: data.cover_image,
       cuisine: data.cuisine,
       difficulty: data.difficulty,
       servings: data.servings,

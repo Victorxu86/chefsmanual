@@ -35,6 +35,7 @@ export function RecipeWizard({ initialData, isEditMode = false }: RecipeWizardPr
   const defaultValues = initialData ? {
     title: initialData.title,
     description: initialData.description,
+    cover_image: initialData.cover_image || "",
     servings: initialData.servings,
     difficulty: initialData.difficulty,
     cuisine: initialData.cuisine,
@@ -52,6 +53,7 @@ export function RecipeWizard({ initialData, isEditMode = false }: RecipeWizardPr
   } : {
     title: "",
     description: "",
+    cover_image: "",
     servings: 2,
     difficulty: "medium",
     is_public: false,

@@ -30,6 +30,7 @@ export async function createRecipe(formData: any) {
     .insert({
       title: data.title,
       description: data.description,
+      cover_image: data.cover_image,
       author_id: user.id,
       cuisine: data.cuisine,
       difficulty: data.difficulty,
