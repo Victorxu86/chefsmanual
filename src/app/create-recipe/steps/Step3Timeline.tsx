@@ -1,24 +1,17 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo } from "react"
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form"
-import { ACTIONS, ActionKey, EQUIPMENT, HEAT_LEVELS, SHAPES } from "@/lib/constants"
-import { Plus, Trash2, Clock, Flame, ChevronRight, X, AlertCircle, Settings2, ChefHat } from "lucide-react"
+import { ACTIONS, ACTION_HIERARCHY, EQUIPMENT, HEAT_LEVELS, SHAPES, ActionDefinition } from "@/lib/constants"
+import { Plus, Trash2, Clock, Flame, ChevronRight, X, AlertCircle, Settings2, ChevronLeft, Home } from "lucide-react"
 
-// === 时间轴刻度逻辑 ===
-// 生成离散的时间点（秒）
+// ... (保留之前的 Time Steps 逻辑)
 const TIME_STEPS = [
-  // 1-10s (1s step)
   ...Array.from({ length: 10 }, (_, i) => i + 1),
-  // 15-60s
   15, 20, 25, 30, 40, 50, 60,
-  // 1m-10m (30s step) -> 90, 120, ... 600
   ...Array.from({ length: 18 }, (_, i) => 60 + (i + 1) * 30),
-  // 10m-30m (5m step) -> 900, 1200... 1800
   ...Array.from({ length: 4 }, (_, i) => 600 + (i + 1) * 300),
-  // 30m-2h (10m step) -> 2400... 7200
   ...Array.from({ length: 9 }, (_, i) => 1800 + (i + 1) * 600),
-  // 2h-5h (30m step) -> 9000... 18000
   ...Array.from({ length: 6 }, (_, i) => 7200 + (i + 1) * 1800),
 ]
 
@@ -44,20 +37,22 @@ export function Step3Timeline() {
   const ingredients = useWatch({ control, name: "ingredients" }) || []
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   
-  // 自动选中新添加的步骤
+  // 动作选择器状态
+  const [navPath, setNavPath] = useState<string[]>([]) // [] -> [realmId] -> [realmId, categoryId]
+
   const handleAddStep = () => {
     append({
       step_order: fields.length + 1,
-      instruction: "新步骤",
+      instruction: "点击配置步骤",
       step_type: "cook",
-      duration: 60, // 默认1分钟
+      duration: 60,
       is_active: true,
       equipment: "wok",
       heat_level: "medium",
-      // 临时存储选中的食材ID，用于生成指令
       _selectedIngredients: [] 
     })
     setSelectedIndex(fields.length)
+    setNavPath([]) // 重置导航
   }
 
   const selectedStep: any = typeof selectedIndex === 'number' ? fields[selectedIndex] : null
@@ -65,11 +60,11 @@ export function Step3Timeline() {
   // 核心逻辑：自动生成指令文本
   const generateInstruction = (step: any, updates: any = {}) => {
     const merged = { ...step, ...updates }
-    // 找到动作定义
-    const actionEntry = Object.entries(ACTIONS).find(([key, val]) => val.label === merged._actionLabel)
-    const actionLabel = actionEntry ? actionEntry[1].label : (merged._actionLabel || "操作")
+    // 从 ACTIONS 字典查找 Label
+    // @ts-ignore
+    const actionDef = ACTIONS[merged._actionKey]
+    const actionLabel = actionDef ? actionDef.label : (merged._actionLabel || "操作")
     
-    // 找到食材名称
     const selectedIds = merged._selectedIngredients || []
     const ingredientNames = ingredients
       .filter((_: any, i: number) => selectedIds.includes(i.toString()))
@@ -85,20 +80,21 @@ export function Step3Timeline() {
   const updateField = (field: string, value: any) => {
     if (selectedIndex === null) return
     
-    // 如果更新的是动作或食材，重新生成 instruction
     let newInstruction = selectedStep.instruction
     let extraUpdates = {}
 
-    if (field === '_actionLabel') {
-      // 根据 Label 反查 Key 和 Type
-      const entry = Object.entries(ACTIONS).find(([k, v]) => v.label === value)
-      if (entry) {
+    if (field === '_actionKey') {
+      // @ts-ignore
+      const def = ACTIONS[value]
+      if (def) {
         // @ts-ignore
-        extraUpdates.step_type = entry[1].type
+        extraUpdates.step_type = def.type
         // @ts-ignore
-        extraUpdates.is_active = entry[1].type !== 'wait'
+        extraUpdates.is_active = def.type !== 'wait'
+        // @ts-ignore
+        extraUpdates._actionLabel = def.label // Cache label
       }
-      newInstruction = generateInstruction(selectedStep, { _actionLabel: value })
+      newInstruction = generateInstruction(selectedStep, { _actionKey: value, ...extraUpdates })
     } else if (field === '_selectedIngredients') {
       newInstruction = generateInstruction(selectedStep, { _selectedIngredients: value })
     }
@@ -108,15 +104,107 @@ export function Step3Timeline() {
       ...selectedStep, 
       [field]: value, 
       ...extraUpdates,
-      instruction: (field === '_actionLabel' || field === '_selectedIngredients') ? newInstruction : selectedStep.instruction 
+      instruction: (field === '_actionKey' || field === '_selectedIngredients') ? newInstruction : selectedStep.instruction 
     })
   }
 
-  // 找到最接近的时间刻度索引
   const getSliderIndex = (seconds: number) => {
     const idx = TIME_STEPS.findIndex(s => s >= seconds)
     return idx === -1 ? TIME_STEPS.length - 1 : idx
   }
+
+  // 渲染右侧面板内容
+  const renderActionPicker = () => {
+    // Level 1: Realm Selection
+    if (navPath.length === 0) {
+      return (
+        <div className="grid grid-cols-2 gap-3">
+          {ACTION_HIERARCHY.map((realm) => (
+            <button
+              key={realm.id}
+              type="button"
+              onClick={() => setNavPath([realm.id])}
+              className="flex flex-col items-center justify-center p-4 rounded-[var(--radius-theme)] bg-[var(--color-page)] border border-[var(--color-border-theme)] hover:border-[var(--color-accent)] transition-all"
+            >
+              <span className="text-2xl mb-2">{realm.icon}</span>
+              <span className="text-sm font-bold">{realm.label}</span>
+            </button>
+          ))}
+        </div>
+      )
+    }
+
+    const currentRealm = ACTION_HIERARCHY.find(r => r.id === navPath[0])
+    if (!currentRealm) return null
+
+    // Level 2: Category Selection
+    if (navPath.length === 1) {
+      return (
+        <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
+          <button 
+            onClick={() => setNavPath([])}
+            className="flex items-center gap-1 text-xs text-[var(--color-muted)] hover:text-[var(--color-accent)] mb-2"
+          >
+            <ChevronLeft className="h-3 w-3" /> 返回上级
+          </button>
+          <h4 className="font-bold text-[var(--color-main)] flex items-center gap-2">
+            {currentRealm.icon} {currentRealm.label}
+          </h4>
+          <div className="grid grid-cols-2 gap-3">
+            {currentRealm.categories.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setNavPath([currentRealm.id, cat.id])}
+                className="p-3 rounded-[var(--radius-theme)] bg-[var(--color-page)] border border-[var(--color-border-theme)] hover:border-[var(--color-accent)] text-left transition-all"
+              >
+                <span className="text-sm font-bold block">{cat.label}</span>
+                <span className="text-xs text-[var(--color-muted)]">{cat.actions.length} 个动作</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )
+    }
+
+    // Level 3: Action Selection
+    const currentCategory = currentRealm.categories.find(c => c.id === navPath[1])
+    if (!currentCategory) return null
+
+    return (
+      <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
+        <button 
+          onClick={() => setNavPath([navPath[0]])}
+          className="flex items-center gap-1 text-xs text-[var(--color-muted)] hover:text-[var(--color-accent)] mb-2"
+        >
+          <ChevronLeft className="h-3 w-3" /> 返回分类
+        </button>
+        <h4 className="font-bold text-[var(--color-main)]">
+          {currentRealm.label} / {currentCategory.label}
+        </h4>
+        <div className="grid grid-cols-3 gap-2">
+          {currentCategory.actions.map((action) => (
+            <button
+              key={action.id}
+              type="button"
+              onClick={() => updateField('_actionKey', action.id)}
+              className={`flex flex-col items-center justify-center p-2 rounded border transition-all
+                ${selectedStep._actionKey === action.id
+                  ? 'bg-[var(--color-accent-light)] border-[var(--color-accent)] text-[var(--color-accent)]' 
+                  : 'bg-[var(--color-page)] border-[var(--color-border-theme)] hover:border-[var(--color-accent)]'}
+              `}
+            >
+              <span className="text-xl mb-1">{action.icon}</span>
+              <span className="text-[10px] text-center leading-tight">{action.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // 获取当前选中的 Action 定义，用于渲染后续参数
+  const currentActionDef = selectedStep?._actionKey ? (ACTIONS as any)[selectedStep._actionKey] : null
 
   return (
     <div className="flex h-[600px] gap-6 animate-in fade-in duration-500">
@@ -124,9 +212,9 @@ export function Step3Timeline() {
       {/* ================== 左侧：时间轴流 ================== */}
       <div 
         className="flex-1 flex flex-col bg-[var(--color-card)] rounded-[var(--radius-theme)] border border-[var(--color-border-theme)] overflow-hidden shadow-sm"
-        // 1. 点击空白处添加步骤 (如果列表为空)
         onClick={() => fields.length === 0 && handleAddStep()}
       >
+        {/* ... (保留左侧代码不变) ... */}
         <div className="p-4 border-b border-[var(--color-border-theme)] flex justify-between items-center bg-[var(--color-page)]/50">
           <h3 className="font-bold text-[var(--color-main)] flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[var(--color-accent)]" />
@@ -197,7 +285,6 @@ export function Step3Timeline() {
                   </div>
                 </div>
                 
-                {/* 标签行 */}
                 <div className="flex gap-2">
                   {field.equipment && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
@@ -215,7 +302,6 @@ export function Step3Timeline() {
             </div>
           ))}
           
-          {/* 添加按钮 (如果有步骤才显示，否则用空白点击) */}
           {fields.length > 0 && (
             <button
               type="button"
@@ -237,7 +323,7 @@ export function Step3Timeline() {
         {selectedStep && (
           <>
             <div className="p-4 border-b border-[var(--color-border-theme)] flex justify-between items-center">
-              <h3 className="font-bold text-[var(--color-main)]">配置步骤 {Number(selectedIndex) + 1}</h3>
+              <h3 className="font-bold text-[var(--color-main)]">步骤 {Number(selectedIndex) + 1} 详情</h3>
               <button onClick={() => setSelectedIndex(null)} className="text-[var(--color-muted)] hover:text-[var(--color-main)]">
                 <X className="h-4 w-4" />
               </button>
@@ -245,114 +331,113 @@ export function Step3Timeline() {
 
             <div className="flex-1 overflow-y-auto p-6 space-y-8">
               
-              {/* 1. 核心动作 (必选) */}
+              {/* 1. 动作选择器 (Cascading Picker) */}
               <div>
                 <label className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-3 block">核心动作</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {Object.entries(ACTIONS).map(([key, def]) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => updateField('_actionLabel', def.label)}
-                      className={`flex flex-col items-center justify-center p-2 rounded border transition-all
-                        ${selectedStep.instruction.startsWith(def.label) // 简单的选中判断
-                          ? 'bg-[var(--color-accent-light)] border-[var(--color-accent)] text-[var(--color-accent)]' 
-                          : 'bg-[var(--color-page)] border-[var(--color-border-theme)] hover:border-[var(--color-accent)]'}
-                      `}
-                    >
-                      <span className="text-xl">{def.icon}</span>
-                      <span className="text-[10px] mt-1">{def.label}</span>
-                    </button>
-                  ))}
-                </div>
+                {renderActionPicker()}
               </div>
 
-              {/* 2. 链接食材 (多选) */}
-              <div>
-                <label className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-3 block">链接食材</label>
-                <div className="flex flex-wrap gap-2">
-                  {ingredients.length > 0 ? ingredients.map((ing: any, idx: number) => {
-                    const isSelected = (selectedStep._selectedIngredients || []).includes(idx.toString())
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => {
-                          const current = selectedStep._selectedIngredients || []
-                          const next = current.includes(idx.toString())
-                            ? current.filter((i: string) => i !== idx.toString())
-                            : [...current, idx.toString()]
-                          updateField('_selectedIngredients', next)
-                        }}
-                        className={`px-3 py-1.5 rounded-full text-sm border transition-all ${
-                          isSelected 
-                            ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)]' 
-                            : 'bg-[var(--color-page)] text-[var(--color-main)] border-[var(--color-border-theme)] hover:border-[var(--color-accent)]'
-                        }`}
-                      >
-                        {ing.name}
-                      </button>
-                    )
-                  }) : (
-                    <span className="text-sm text-[var(--color-muted)]">暂无食材，请先在上一步添加</span>
-                  )}
-                </div>
-              </div>
-
-              {/* 2.5 指令预览 (只读) */}
-              <div className="p-3 bg-[var(--color-page)] rounded border border-[var(--color-border-theme)]">
-                <span className="text-xs text-[var(--color-muted)] block mb-1">指令预览</span>
-                <p className="text-sm font-bold text-[var(--color-main)]">
-                  {selectedStep.instruction}
-                </p>
-              </div>
-
-              {/* 3. 耗时 (非线性滑块) */}
-              <div>
-                <label className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-3 block">预计耗时</label>
-                <div className="flex flex-col gap-2">
-                  <input
-                    type="range" 
-                    min="0" 
-                    max={TIME_STEPS.length - 1} 
-                    step="1"
-                    value={getSliderIndex(selectedStep.duration)}
-                    onChange={(e) => updateField('duration', TIME_STEPS[e.target.valueAsNumber])}
-                    className="w-full accent-[var(--color-accent)]"
-                  />
-                  <div className="flex justify-between text-xs text-[var(--color-muted)] font-mono">
-                    <span>1s</span>
-                    <span className="text-[var(--color-accent)] font-bold text-base">
-                      {formatDuration(selectedStep.duration)}
-                    </span>
-                    <span>5h</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 4. 环境配置 */}
-              <div>
-                <label className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-3 block">环境配置</label>
-                <div className="space-y-3">
-                  <select
-                    value={selectedStep.equipment || ""}
-                    onChange={(e) => updateField('equipment', e.target.value)}
-                    className="w-full px-3 py-2 rounded bg-[var(--color-page)] border border-[var(--color-border-theme)] text-sm"
-                  >
-                    <option value="">选择设备...</option>
-                    {EQUIPMENT.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
-                  </select>
+              {/* 2. 动态参数 (只在选中 Action 后显示) */}
+              {currentActionDef && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                   
-                  <select
-                    value={selectedStep.heat_level || ""}
-                    onChange={(e) => updateField('heat_level', e.target.value)}
-                    className="w-full px-3 py-2 rounded bg-[var(--color-page)] border border-[var(--color-border-theme)] text-sm"
-                  >
-                    <option value="">选择火力...</option>
-                    {HEAT_LEVELS.map(h => <option key={h.value} value={h.value}>{h.label}</option>)}
-                  </select>
+                  {/* 食材选择 */}
+                  {(currentActionDef.params as string[]).includes("ingredients") || (currentActionDef.params as string[]).includes("ingredient") ? (
+                    <div>
+                      <label className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-3 block">选择食材</label>
+                      <div className="flex flex-wrap gap-2">
+                        {ingredients.length > 0 ? ingredients.map((ing: any, idx: number) => {
+                          const isSelected = (selectedStep._selectedIngredients || []).includes(idx.toString())
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => {
+                                const current = selectedStep._selectedIngredients || []
+                                const next = current.includes(idx.toString())
+                                  ? current.filter((i: string) => i !== idx.toString())
+                                  : [...current, idx.toString()]
+                                updateField('_selectedIngredients', next)
+                              }}
+                              className={`px-3 py-1.5 rounded-full text-sm border transition-all ${
+                                isSelected 
+                                  ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)]' 
+                                  : 'bg-[var(--color-page)] text-[var(--color-main)] border-[var(--color-border-theme)] hover:border-[var(--color-accent)]'
+                              }`}
+                            >
+                              {ing.name}
+                            </button>
+                          )
+                        }) : (
+                          <span className="text-sm text-[var(--color-muted)]">暂无食材</span>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* 指令预览 */}
+                  <div className="p-3 bg-[var(--color-page)] rounded border border-[var(--color-border-theme)]">
+                    <span className="text-xs text-[var(--color-muted)] block mb-1">最终指令</span>
+                    <p className="text-sm font-bold text-[var(--color-main)]">
+                      {selectedStep.instruction}
+                    </p>
+                  </div>
+
+                  {/* 时长滑块 */}
+                  <div>
+                    <label className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-3 block">耗时</label>
+                    <div className="flex flex-col gap-2">
+                      <input
+                        type="range" 
+                        min="0" 
+                        max={TIME_STEPS.length - 1} 
+                        step="1"
+                        value={getSliderIndex(selectedStep.duration)}
+                        onChange={(e) => updateField('duration', TIME_STEPS[e.target.valueAsNumber])}
+                        className="w-full accent-[var(--color-accent)]"
+                      />
+                      <div className="flex justify-between text-xs text-[var(--color-muted)] font-mono">
+                        <span>1s</span>
+                        <span className="text-[var(--color-accent)] font-bold text-base">
+                          {formatDuration(selectedStep.duration)}
+                        </span>
+                        <span>5h</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 环境配置 (根据 params 显示) */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {(currentActionDef.params as string[]).includes("tool") && (
+                      <div>
+                        <label className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-2 block">设备</label>
+                        <select
+                          value={selectedStep.equipment || ""}
+                          onChange={(e) => updateField('equipment', e.target.value)}
+                          className="w-full px-3 py-2 rounded bg-[var(--color-page)] border border-[var(--color-border-theme)] text-sm"
+                        >
+                          <option value="">选择...</option>
+                          {EQUIPMENT.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+                        </select>
+                      </div>
+                    )}
+                    {(currentActionDef.params as string[]).includes("heat") && (
+                      <div>
+                        <label className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-2 block">火力</label>
+                        <select
+                          value={selectedStep.heat_level || ""}
+                          onChange={(e) => updateField('heat_level', e.target.value)}
+                          className="w-full px-3 py-2 rounded bg-[var(--color-page)] border border-[var(--color-border-theme)] text-sm"
+                        >
+                          <option value="">选择...</option>
+                          {HEAT_LEVELS.map(h => <option key={h.value} value={h.value}>{h.label}</option>)}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
                 </div>
-              </div>
+              )}
 
             </div>
           </>
@@ -362,4 +447,3 @@ export function Step3Timeline() {
     </div>
   )
 }
-

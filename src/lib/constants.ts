@@ -80,36 +80,185 @@ export const INGREDIENT_UNITS = [
   { value: "taste", label: "按口味", type: "vague" },
 ] as const
 
-// 新增：详细动作字典
-export const ACTIONS = {
-  // 🔪 备菜类
-  cut: { label: "切", icon: "🔪", type: "prep", params: ["ingredient", "shape", "duration"] },
-  wash: { label: "洗", icon: "💧", type: "prep", params: ["ingredient", "duration"] },
-  marinate: { label: "腌制", icon: "🥣", type: "prep", params: ["ingredient", "condiment", "duration"] },
-  mix: { label: "混合", icon: "🔄", type: "prep", params: ["ingredients", "tool", "duration"] },
-  
-  // 🍳 炉灶烹饪
-  stir_fry: { label: "炒", icon: "🍳", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
-  boil: { label: "煮", icon: "🍲", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
-  steam: { label: "蒸", icon: "♨️", type: "cook", params: ["ingredients", "duration", "tool"] },
-  fry: { label: "煎/炸", icon: "🍤", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
-  stew: { label: "炖/焖", icon: "🥘", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
-  
-  // 🌡️ 烤箱/设备
-  bake: { label: "烘烤", icon: "🍰", type: "cook", params: ["ingredients", "temp", "duration", "tool"] },
-  
-  // 🍽️ 其他
-  plate: { label: "摆盘", icon: "🍽️", type: "serve", params: ["duration"] },
-  rest: { label: "静置", icon: "⏳", type: "wait", params: ["duration"] },
-} as const
+// 形状字典
+export const SHAPES = [
+  { value: "slice", label: "片 (Slices)" },
+  { value: "strip", label: "丝 (Strips)" },
+  { value: "cube", label: "丁/块 (Cubes)" },
+  { value: "mince", label: "末/蓉 (Minced)" },
+  { value: "chunk", label: "滚刀块 (Chunks)" },
+  { value: "ring", label: "圈 (Rings)" },
+  { value: "flower", label: "花刀 (Flower)" },
+  { value: "segment", label: "段 (Segments)" },
+  { value: "whole", label: "整只 (Whole)" },
+] as const
+
+// === NEW: 完整的动作层级体系 (V4) ===
+
+export type ActionDefinition = {
+  label: string
+  icon: string
+  type: "prep" | "cook" | "wait" | "serve"
+  params: string[] // "ingredient", "ingredients", "heat", "tool", "duration", "shape", "condiment"
+}
+
+// 扁平化的动作映射表 (用于快速查找)
+export const ACTIONS: Record<string, ActionDefinition> = {}
+
+// 层级结构定义 (用于UI渲染)
+export const ACTION_HIERARCHY = [
+  {
+    id: "heat_cook",
+    label: "加热/烹调",
+    icon: "🔥",
+    categories: [
+      {
+        id: "stir_fry",
+        label: "炒",
+        actions: [
+          { id: "stir_fry_basic", label: "炒", icon: "🍳", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
+          { id: "stir_fry_quick", label: "爆炒", icon: "🔥", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
+          { id: "stir_fry_dry", label: "干煸", icon: "🏜️", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
+          { id: "stir_fry_soft", label: "滑炒", icon: "🌫️", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
+        ]
+      },
+      {
+        id: "pan_fry",
+        label: "煎",
+        actions: [
+          { id: "pan_fry_basic", label: "煎", icon: "🥘", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
+          { id: "pan_fry_slow", label: "慢煎", icon: "🐢", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
+          { id: "pan_fry_sear", label: "煎封", icon: "🥩", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
+        ]
+      },
+      {
+        id: "deep_fry",
+        label: "炸",
+        actions: [
+          { id: "deep_fry_basic", label: "油炸", icon: "🍤", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
+          { id: "deep_fry_crisp", label: "酥炸", icon: "🍗", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
+          { id: "deep_fry_double", label: "复炸", icon: "🔁", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
+        ]
+      },
+      {
+        id: "boil_stew",
+        label: "煮/炖",
+        actions: [
+          { id: "boil", label: "煮", icon: "🍲", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
+          { id: "blanch", label: "焯水", icon: "💧", type: "cook", params: ["ingredients", "duration", "tool"] },
+          { id: "stew", label: "炖", icon: "🥘", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
+          { id: "braise", label: "焖", icon: "🍲", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
+          { id: "simmer", label: "煨", icon: "🍵", type: "cook", params: ["ingredients", "heat", "duration", "tool"] },
+        ]
+      },
+      {
+        id: "steam",
+        label: "蒸",
+        actions: [
+          { id: "steam_basic", label: "蒸", icon: "♨️", type: "cook", params: ["ingredients", "duration", "tool"] },
+          { id: "steam_high", label: "旺火蒸", icon: "🌋", type: "cook", params: ["ingredients", "duration", "tool"] },
+        ]
+      },
+      {
+        id: "oven",
+        label: "烤/烘焙",
+        actions: [
+          { id: "bake", label: "烘烤", icon: "🍰", type: "cook", params: ["ingredients", "temp", "duration", "tool"] },
+          { id: "roast", label: "烤肉/菜", icon: "🍖", type: "cook", params: ["ingredients", "temp", "duration", "tool"] },
+          { id: "broil", label: "炙烤", icon: "🍢", type: "cook", params: ["ingredients", "temp", "duration", "tool"] },
+        ]
+      }
+    ]
+  },
+  {
+    id: "prep",
+    label: "准备/切配",
+    icon: "🔪",
+    categories: [
+      {
+        id: "cut",
+        label: "切工",
+        actions: [
+          { id: "cut_basic", label: "切", icon: "🔪", type: "prep", params: ["ingredient", "shape", "duration"] },
+          { id: "mince", label: "剁碎/蓉", icon: "🔨", type: "prep", params: ["ingredient", "duration"] },
+          { id: "slice", label: "切片", icon: "🥒", type: "prep", params: ["ingredient", "duration"] }, // Shortcut
+          { id: "shred", label: "切丝", icon: "🥕", type: "prep", params: ["ingredient", "duration"] }, // Shortcut
+        ]
+      },
+      {
+        id: "clean",
+        label: "清洗/处理",
+        actions: [
+          { id: "wash", label: "清洗", icon: "💧", type: "prep", params: ["ingredient", "duration"] },
+          { id: "peel", label: "去皮", icon: "🥔", type: "prep", params: ["ingredient", "duration"] },
+          { id: "debone", label: "剔骨/去刺", icon: "🦴", type: "prep", params: ["ingredient", "duration"] },
+          { id: "shell", label: "剥壳/去虾线", icon: "🦐", type: "prep", params: ["ingredient", "duration"] },
+        ]
+      }
+    ]
+  },
+  {
+    id: "season_mix",
+    label: "腌制/混合",
+    icon: "🥣",
+    categories: [
+      {
+        id: "marinate",
+        label: "腌制",
+        actions: [
+          { id: "marinate", label: "腌制", icon: "🥣", type: "prep", params: ["ingredient", "condiment", "duration"] },
+          { id: "coat", label: "挂糊/上浆", icon: "🥚", type: "prep", params: ["ingredient", "duration"] },
+          { id: "bread", label: "裹粉/面包糠", icon: "🍞", type: "prep", params: ["ingredient", "duration"] },
+        ]
+      },
+      {
+        id: "mix",
+        label: "混合",
+        actions: [
+          { id: "mix", label: "搅拌/混合", icon: "🔄", type: "prep", params: ["ingredients", "duration"] },
+          { id: "whip", label: "打发", icon: "🌪️", type: "prep", params: ["ingredients", "duration"] },
+          { id: "knead", label: "揉面", icon: "👐", type: "prep", params: ["ingredients", "duration"] },
+        ]
+      }
+    ]
+  },
+  {
+    id: "finish",
+    label: "完成/其他",
+    icon: "🏁",
+    categories: [
+      {
+        id: "serve",
+        label: "摆盘",
+        actions: [
+          { id: "plate", label: "装盘", icon: "🍽️", type: "serve", params: ["duration"] },
+          { id: "garnish", label: "点缀", icon: "🌿", type: "serve", params: ["duration"] },
+        ]
+      },
+      {
+        id: "rest",
+        label: "静置",
+        actions: [
+          { id: "rest", label: "静置/醒面", icon: "⏳", type: "wait", params: ["duration"] },
+          { id: "cool", label: "冷却", icon: "❄️", type: "wait", params: ["duration"] },
+          { id: "freeze", label: "冷冻", icon: "🧊", type: "wait", params: ["duration"] },
+        ]
+      }
+    ]
+  }
+] as const
+
+// Populate the flat ACTIONS map for easy lookup
+// @ts-ignore
+ACTION_HIERARCHY.forEach(realm => {
+  // @ts-ignore
+  realm.categories.forEach(category => {
+    // @ts-ignore
+    category.actions.forEach(action => {
+      // @ts-ignore
+      ACTIONS[action.id] = action
+    })
+  })
+})
 
 export type ActionKey = keyof typeof ACTIONS
-
-export const SHAPES = [
-  { value: "slice", label: "片" },
-  { value: "strip", label: "丝" },
-  { value: "cube", label: "块/丁" },
-  { value: "mince", label: "末/泥" },
-  { value: "chunk", label: "滚刀块" },
-  { value: "whole", label: "整只" },
-] as const
