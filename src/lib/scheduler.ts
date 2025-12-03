@@ -13,16 +13,14 @@ export interface SchedulerStep {
   isActive: boolean // 是否占用人手
   equipment?: string // 占用特定设备
   isInterruptible: boolean 
-  // 原始动作Key，用于精准推断
-  _actionKey?: string
 }
 
 export interface ScheduledBlock {
   step: SchedulerStep
-  startTime: number // 相对开饭时间的秒数 (通常为负数)
+  startTime: number // 相对开饭时间的秒数
   endTime: number
-  lane: "chef" | "stove" | "oven" | "other" // 泳道归属
-  resourceId: string 
+  lane: "chef" | "stove" | "oven" | "board" | "bowl" | "other"
+  resourceId: string // 具体资源ID (如 stove_1, stove_2)
 }
 
 // 资源池定义
@@ -30,14 +28,31 @@ interface ResourcePool {
   chef: number 
   stove: number 
   oven: number
-  board: number // 砧板
-  bowl: number  // 料理碗
+  board: number
+  bowl: number
+}
+
+// 资源时间轴 (记录占用情况)
+class ResourceTimeline {
+  private occupied: { start: number, end: number }[] = []
+
+  isAvailable(start: number, end: number): boolean {
+    return !this.occupied.some(interval => 
+      !(interval.end <= start || interval.start >= end)
+    )
+  }
+
+  book(start: number, end: number) {
+    this.occupied.push({ start, end })
+    // 保持有序并非必须，但利于调试
+    this.occupied.sort((a, b) => a.start - b.start)
+  }
 }
 
 export class KitchenScheduler {
-  private steps: SchedulerStep[] = []
-  private timeline: ScheduledBlock[] = []
   private resources: ResourcePool
+  // 资源实例状态: resourceType -> resourceIndex -> Timeline
+  private resourceStates: Record<string, ResourceTimeline[]> = {}
 
   constructor(resources: Partial<ResourcePool> = {}) {
     this.resources = {
@@ -48,24 +63,36 @@ export class KitchenScheduler {
       bowl: 2,
       ...resources
     }
+    
+    // 初始化资源时间轴
+    this.initResourceStates()
+  }
+
+  private initResourceStates() {
+    this.resourceStates = {
+      chef: Array(this.resources.chef).fill(null).map(() => new ResourceTimeline()),
+      stove: Array(this.resources.stove).fill(null).map(() => new ResourceTimeline()),
+      oven: Array(this.resources.oven).fill(null).map(() => new ResourceTimeline()),
+      board: Array(this.resources.board).fill(null).map(() => new ResourceTimeline()),
+      bowl: Array(this.resources.bowl).fill(null).map(() => new ResourceTimeline()),
+    }
   }
 
   schedule(recipes: any[]): ScheduledBlock[] {
+    this.initResourceStates() // 重置状态
+    const outputBlocks: ScheduledBlock[] = []
+
+    // 1. 预处理步骤
     const allTaskChains = recipes.map((recipe, idx) => {
       const color = `hsl(${idx * 60}, 70%, 50%)` 
       return recipe.steps.map((s: any) => {
-        // === 智能推断 Active/Passive ===
-        // 1. 优先使用 constants.ts 里的 forcePassive 定义
         let isActive = s.is_active
-        // 尝试从 instruction 反推 action key (简单匹配 label)
-        // 注意：这里只是简单的包含匹配，理想情况是保存时就存了 actionKey
-        // 如果前端 V5 保存了 _actionKey，这里可以直接用
-        // 但数据库 schema 可能丢了它。
-        // 我们尝试遍历 ACTIONS 找匹配
         const actionEntry = Object.values(ACTIONS).find((a: any) => s.instruction.startsWith(a.label))
         if (actionEntry && actionEntry.forcePassive !== undefined) {
           isActive = !actionEntry.forcePassive
         }
+        // 特殊规则：切菜只占 0.5？不，V3算法使用资源槽位，我们假设切菜占 1 个板 + 1 个手
+        // 为了简化，我们不搞 0.5，而是依赖具体的资源实例
 
         return {
           id: s.id || Math.random().toString(),
@@ -78,19 +105,18 @@ export class KitchenScheduler {
           isActive: isActive,
           equipment: s.equipment,
           isInterruptible: s.is_interruptible,
-          _actionKey: (actionEntry as any)?.id
         } as SchedulerStep
       }).sort((a: any, b: any) => a.stepOrder - b.stepOrder)
     })
 
-    this.timeline = []
-    
+    // 按总时长降序
     const sortedChains = allTaskChains.sort((chainA, chainB) => {
       const durationA = chainA.reduce((sum: number, s: any) => sum + s.duration, 0)
       const durationB = chainB.reduce((sum: number, s: any) => sum + s.duration, 0)
       return durationB - durationA
     })
 
+    // 2. 倒序排程
     for (const chain of sortedChains) {
       let lastStepEndTime = 0 
 
@@ -99,17 +125,26 @@ export class KitchenScheduler {
         let proposedEnd = lastStepEndTime
         let placed = false
 
+        // 搜索循环
         while (!placed) {
           const proposedStart = proposedEnd - step.duration
           
-          if (this.checkAvailability(step, proposedStart, proposedEnd)) {
-            const laneInfo = this.assignLane(step)
-            this.timeline.push({
-              step,
-              startTime: proposedStart,
-              endTime: proposedEnd,
-              lane: laneInfo.lane,
-              resourceId: laneInfo.id
+          // 检查所有需要的资源是否都有空闲的实例
+          const requirements = this.identifyRequirements(step)
+          const allocation = this.tryAllocate(requirements, proposedStart, proposedEnd)
+
+          if (allocation) {
+            // 预订资源并生成 Blocks
+            allocation.forEach(alloc => {
+              this.resourceStates[alloc.type][alloc.index].book(proposedStart, proposedEnd)
+              
+              outputBlocks.push({
+                step,
+                startTime: proposedStart,
+                endTime: proposedEnd,
+                lane: alloc.type as any,
+                resourceId: `${alloc.type}_${alloc.index + 1}`
+              })
             })
             
             lastStepEndTime = proposedStart 
@@ -122,72 +157,74 @@ export class KitchenScheduler {
       }
     }
 
-    if (this.timeline.length > 0) {
-      const minTime = Math.min(...this.timeline.map(b => b.startTime))
-      this.timeline.forEach(b => {
+    // 3. 归一化
+    if (outputBlocks.length > 0) {
+      const minTime = Math.min(...outputBlocks.map(b => b.startTime))
+      outputBlocks.forEach(b => {
         b.startTime -= minTime
         b.endTime -= minTime
       })
     }
 
-    return this.timeline.sort((a, b) => a.startTime - b.startTime)
+    return outputBlocks.sort((a, b) => a.startTime - b.startTime)
   }
 
-  private checkAvailability(step: SchedulerStep, start: number, end: number): boolean {
-    // 1. 检查 Chef (Active)
-    if (step.isActive) {
-      const chefConflict = this.timeline.some(b => 
-        b.step.isActive && 
-        !(b.endTime <= start || b.startTime >= end)
-      )
-      if (chefConflict) return false
-    }
+  // 识别步骤需要哪些资源
+  private identifyRequirements(step: SchedulerStep): string[] {
+    const reqs: string[] = []
+    
+    // Chef
+    if (step.isActive) reqs.push('chef')
+    
+    // Stove
+    if (this.isStoveRequired(step)) reqs.push('stove')
+    
+    // Oven
+    if (this.isOvenRequired(step)) reqs.push('oven')
+    
+    // Board
+    if (this.isBoardRequired(step)) reqs.push('board')
+    
+    // Bowl
+    if (this.isBowlRequired(step)) reqs.push('bowl')
 
-    // 2. 检查 Stove
-    if (this.isStoveRequired(step)) {
-      if (this.countUsage(start, end, this.isStoveRequired.bind(this)) >= this.resources.stove) return false
-    }
-
-    // 3. 检查 Oven
-    if (this.isOvenRequired(step)) {
-      if (this.countUsage(start, end, this.isOvenRequired.bind(this)) >= this.resources.oven) return false
-    }
-
-    // 4. 检查 Board (权重 0.5)
-    if (this.isBoardRequired(step)) {
-      // 统计当前时间段内占用砧板的任务数量
-      // 以前是 count，现在我们要累加权重
-      // 假设所有切菜任务权重都是 0.5
-      const boardUsage = this.timeline
-        .filter(b => this.isBoardRequired(b.step) && !(b.endTime <= start || b.startTime >= end))
-        .reduce((acc, b) => acc + 0.5, 0)
-      
-      // 当前任务也要占 0.5
-      if (boardUsage + 0.5 > this.resources.board) return false
-    }
-
-    // 5. 检查 Bowl
-    if (this.isBowlRequired(step)) {
-      if (this.countUsage(start, end, this.isBowlRequired.bind(this)) >= this.resources.bowl) return false
-    }
-
-    return true
+    return reqs
   }
 
-  private countUsage(start: number, end: number, predicate: (s: SchedulerStep) => boolean): number {
-    return this.timeline.filter(b => 
-      predicate(b.step) &&
-      !(b.endTime <= start || b.startTime >= end)
-    ).length
+  // 尝试分配资源实例
+  private tryAllocate(reqs: string[], start: number, end: number): { type: string, index: number }[] | null {
+    const allocation: { type: string, index: number }[] = []
+
+    for (const type of reqs) {
+      // 找到该类型下第一个空闲的实例
+      const timelines = this.resourceStates[type]
+      if (!timelines) continue // Unknown resource type
+
+      let foundIndex = -1
+      for (let i = 0; i < timelines.length; i++) {
+        if (timelines[i].isAvailable(start, end)) {
+          foundIndex = i
+          break
+        }
+      }
+
+      if (foundIndex !== -1) {
+        allocation.push({ type, index: foundIndex })
+      } else {
+        return null // 资源不足，分配失败
+      }
+    }
+
+    return allocation
   }
 
+  // === 辅助判断逻辑 (同前) ===
   private isStoveRequired(step: SchedulerStep): boolean {
     if (['wok', 'pan', 'pot', 'pressure_cooker'].includes(step.equipment || '')) return true
-    // 如果动作包含炒、煎、煮、炖、焖，且不是电饭煲/烤箱
-    if (['炒', '煎', '煮', '炖', '焖', '煨', '焯水'].some(k => step.instruction.includes(k))) {
-       const nonStoveEquip = ['oven', 'steamer', 'air_fryer', 'microwave', 'sous_vide']
-       if (nonStoveEquip.includes(step.equipment || '')) return false
-       return true
+    if (step.type === 'cook') {
+      const nonStoveEquip = ['oven', 'steamer', 'air_fryer', 'microwave', 'sous_vide']
+      if (nonStoveEquip.includes(step.equipment || '')) return false
+      return true
     }
     return false
   }
@@ -207,11 +244,5 @@ export class KitchenScheduler {
     if (step.equipment === 'bowl') return true
     if (['腌', '拌', '打发', '静置'].some(k => step.instruction.includes(k))) return true
     return false
-  }
-
-  private assignLane(step: SchedulerStep): { lane: ScheduledBlock['lane'], id: string } {
-    if (this.isOvenRequired(step)) return { lane: 'oven', id: 'oven_1' }
-    if (this.isStoveRequired(step)) return { lane: 'stove', id: 'stove_any' }
-    return { lane: 'chef', id: 'chef_1' }
   }
 }
