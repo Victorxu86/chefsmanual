@@ -54,6 +54,11 @@ export const stepSchema = z.object({
   
   // 依赖关系 (V2)
   input_ingredients: z.array(z.string()).optional(), // 这一步用到了哪些食材ID
+  
+  // 前端临时字段 (V5 Editor State)
+  _actionKey: z.string().optional(),
+  _actionLabel: z.string().optional(),
+  _selectedIngredients: z.array(z.string()).optional(),
 })
 
 // 菜谱 Schema
