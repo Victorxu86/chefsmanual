@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form"
 import { ACTIONS, ACTION_HIERARCHY, EQUIPMENT, HEAT_LEVELS, SHAPES, ActionDefinition } from "@/lib/constants"
 import { Plus, Trash2, Clock, Flame, ChevronRight, X, AlertCircle, Settings2, ChevronLeft, Home } from "lucide-react"
@@ -37,8 +37,8 @@ export function Step3Timeline() {
   const ingredients = useWatch({ control, name: "ingredients" }) || []
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   
-  // 动作选择器状态
-  const [navPath, setNavPath] = useState<string[]>([]) // [] -> [realmId] -> [realmId, categoryId]
+  // 动作选择器状态：当前选中的 Realm ID (一级分类)
+  const [activeRealmId, setActiveRealmId] = useState<string>(ACTION_HIERARCHY[0].id)
 
   const handleAddStep = () => {
     append({
@@ -52,7 +52,6 @@ export function Step3Timeline() {
       _selectedIngredients: [] 
     })
     setSelectedIndex(fields.length)
-    setNavPath([]) // 重置导航
   }
 
   const selectedStep: any = typeof selectedIndex === 'number' ? fields[selectedIndex] : null
@@ -60,9 +59,9 @@ export function Step3Timeline() {
   // 核心逻辑：自动生成指令文本
   const generateInstruction = (step: any, updates: any = {}) => {
     const merged = { ...step, ...updates }
-    // 从 ACTIONS 字典查找 Label
+    const actionKey = merged._actionKey
     // @ts-ignore
-    const actionDef = ACTIONS[merged._actionKey]
+    const actionDef = ACTIONS[actionKey]
     const actionLabel = actionDef ? actionDef.label : (merged._actionLabel || "操作")
     
     const selectedIds = merged._selectedIngredients || []
@@ -92,7 +91,7 @@ export function Step3Timeline() {
         // @ts-ignore
         extraUpdates.is_active = def.type !== 'wait'
         // @ts-ignore
-        extraUpdates._actionLabel = def.label // Cache label
+        extraUpdates._actionLabel = def.label
       }
       newInstruction = generateInstruction(selectedStep, { _actionKey: value, ...extraUpdates })
     } else if (field === '_selectedIngredients') {
@@ -115,96 +114,66 @@ export function Step3Timeline() {
 
   // 渲染右侧面板内容
   const renderActionPicker = () => {
-    // Level 1: Realm Selection
-    if (navPath.length === 0) {
-      return (
-        <div className="grid grid-cols-2 gap-3">
+    const currentRealm = ACTION_HIERARCHY.find(r => r.id === activeRealmId)
+    
+    return (
+      <div className="space-y-4">
+        {/* 1. Realm Tabs (一级分类) */}
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {ACTION_HIERARCHY.map((realm) => (
             <button
               key={realm.id}
               type="button"
-              onClick={() => setNavPath([realm.id])}
-              className="flex flex-col items-center justify-center p-4 rounded-[var(--radius-theme)] bg-[var(--color-page)] border border-[var(--color-border-theme)] hover:border-[var(--color-accent)] transition-all"
+              onClick={() => setActiveRealmId(realm.id)}
+              className={`
+                flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all
+                ${activeRealmId === realm.id 
+                  ? 'bg-[var(--color-accent)] text-white shadow-md' 
+                  : 'bg-[var(--color-page)] text-[var(--color-muted)] border border-[var(--color-border-theme)] hover:border-[var(--color-accent)]'}
+              `}
             >
-              <span className="text-2xl mb-2">{realm.icon}</span>
-              <span className="text-sm font-bold">{realm.label}</span>
+              <span>{realm.icon}</span>
+              <span>{realm.label.split('/')[0]}</span>
             </button>
           ))}
         </div>
-      )
-    }
 
-    const currentRealm = ACTION_HIERARCHY.find(r => r.id === navPath[0])
-    if (!currentRealm) return null
-
-    // Level 2: Category Selection
-    if (navPath.length === 1) {
-      return (
-        <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-          <button 
-            onClick={() => setNavPath([])}
-            className="flex items-center gap-1 text-xs text-[var(--color-muted)] hover:text-[var(--color-accent)] mb-2"
-          >
-            <ChevronLeft className="h-3 w-3" /> 返回上级
-          </button>
-          <h4 className="font-bold text-[var(--color-main)] flex items-center gap-2">
-            {currentRealm.icon} {currentRealm.label}
-          </h4>
-          <div className="grid grid-cols-2 gap-3">
-            {currentRealm.categories.map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => setNavPath([currentRealm.id, cat.id])}
-                className="p-3 rounded-[var(--radius-theme)] bg-[var(--color-page)] border border-[var(--color-border-theme)] hover:border-[var(--color-accent)] text-left transition-all"
-              >
-                <span className="text-sm font-bold block">{cat.label}</span>
-                <span className="text-xs text-[var(--color-muted)]">{cat.actions.length} 个动作</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )
-    }
-
-    // Level 3: Action Selection
-    const currentCategory = currentRealm.categories.find(c => c.id === navPath[1])
-    if (!currentCategory) return null
-
-    return (
-      <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-        <button 
-          onClick={() => setNavPath([navPath[0]])}
-          className="flex items-center gap-1 text-xs text-[var(--color-muted)] hover:text-[var(--color-accent)] mb-2"
-        >
-          <ChevronLeft className="h-3 w-3" /> 返回分类
-        </button>
-        <h4 className="font-bold text-[var(--color-main)]">
-          {currentRealm.label} / {currentCategory.label}
-        </h4>
-        <div className="grid grid-cols-3 gap-2">
-          {currentCategory.actions.map((action) => (
-            <button
-              key={action.id}
-              type="button"
-              onClick={() => updateField('_actionKey', action.id)}
-              className={`flex flex-col items-center justify-center p-2 rounded border transition-all
-                ${selectedStep._actionKey === action.id
-                  ? 'bg-[var(--color-accent-light)] border-[var(--color-accent)] text-[var(--color-accent)]' 
-                  : 'bg-[var(--color-page)] border-[var(--color-border-theme)] hover:border-[var(--color-accent)]'}
-              `}
-            >
-              <span className="text-xl mb-1">{action.icon}</span>
-              <span className="text-[10px] text-center leading-tight">{action.label}</span>
-            </button>
+        {/* 2. Categories & Actions (二级分类 + 动作) */}
+        <div className="space-y-6 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
+          {currentRealm?.categories.map((cat) => (
+            <div key={cat.id}>
+              <h5 className="text-xs font-bold text-[var(--color-muted)] mb-2 flex items-center gap-2">
+                <span className="w-1 h-3 bg-[var(--color-border-theme)] rounded-full" />
+                {cat.label}
+              </h5>
+              <div className="grid grid-cols-3 gap-2">
+                {cat.actions.map((action) => (
+                  <button
+                    key={action.id}
+                    type="button"
+                    onClick={() => updateField('_actionKey', action.id)}
+                    className={`
+                      flex flex-col items-center justify-center p-2 rounded border transition-all min-h-[60px]
+                      ${selectedStep._actionKey === action.id
+                        ? 'bg-[var(--color-accent-light)] border-[var(--color-accent)] text-[var(--color-accent)] shadow-sm' 
+                        : 'bg-[var(--color-page)] border-[var(--color-border-theme)] hover:border-[var(--color-accent)] hover:shadow-sm'}
+                    `}
+                  >
+                    <span className="text-lg mb-1">{action.icon}</span>
+                    <span className="text-[10px] text-center leading-tight scale-90">{action.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </div>
     )
   }
 
-  // 获取当前选中的 Action 定义，用于渲染后续参数
-  const currentActionDef = selectedStep?._actionKey ? (ACTIONS as any)[selectedStep._actionKey] : null
+  // 获取当前选中的 Action 定义
+  // @ts-ignore
+  const currentActionDef = selectedStep?._actionKey ? ACTIONS[selectedStep._actionKey] : null
 
   return (
     <div className="flex h-[600px] gap-6 animate-in fade-in duration-500">
@@ -214,7 +183,6 @@ export function Step3Timeline() {
         className="flex-1 flex flex-col bg-[var(--color-card)] rounded-[var(--radius-theme)] border border-[var(--color-border-theme)] overflow-hidden shadow-sm"
         onClick={() => fields.length === 0 && handleAddStep()}
       >
-        {/* ... (保留左侧代码不变) ... */}
         <div className="p-4 border-b border-[var(--color-border-theme)] flex justify-between items-center bg-[var(--color-page)]/50">
           <h3 className="font-bold text-[var(--color-main)] flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[var(--color-accent)]" />
@@ -323,7 +291,7 @@ export function Step3Timeline() {
         {selectedStep && (
           <>
             <div className="p-4 border-b border-[var(--color-border-theme)] flex justify-between items-center">
-              <h3 className="font-bold text-[var(--color-main)]">步骤 {Number(selectedIndex) + 1} 详情</h3>
+              <h3 className="font-bold text-[var(--color-main)]">配置步骤 {Number(selectedIndex) + 1}</h3>
               <button onClick={() => setSelectedIndex(null)} className="text-[var(--color-muted)] hover:text-[var(--color-main)]">
                 <X className="h-4 w-4" />
               </button>
@@ -331,7 +299,7 @@ export function Step3Timeline() {
 
             <div className="flex-1 overflow-y-auto p-6 space-y-8">
               
-              {/* 1. 动作选择器 (Cascading Picker) */}
+              {/* 1. 动作选择器 (Tabs + Grid) */}
               <div>
                 <label className="text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider mb-3 block">核心动作</label>
                 {renderActionPicker()}
@@ -339,7 +307,7 @@ export function Step3Timeline() {
 
               {/* 2. 动态参数 (只在选中 Action 后显示) */}
               {currentActionDef && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4 border-t border-[var(--color-border-theme)]">
                   
                   {/* 食材选择 */}
                   {(currentActionDef.params as string[]).includes("ingredients") || (currentActionDef.params as string[]).includes("ingredient") ? (
@@ -377,7 +345,7 @@ export function Step3Timeline() {
 
                   {/* 指令预览 */}
                   <div className="p-3 bg-[var(--color-page)] rounded border border-[var(--color-border-theme)]">
-                    <span className="text-xs text-[var(--color-muted)] block mb-1">最终指令</span>
+                    <span className="text-xs text-[var(--color-muted)] block mb-1">指令预览</span>
                     <p className="text-sm font-bold text-[var(--color-main)]">
                       {selectedStep.instruction}
                     </p>
