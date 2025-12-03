@@ -19,6 +19,13 @@ const IngredientCategoryEnum = z.enum(INGREDIENT_CATEGORIES.map(c => c.value) as
 // 辅助函数：将空字符串转换为 undefined
 const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val);
 
+// 辅助函数：安全地将值转换为数字，处理空值和NaN
+const safeNumber = (val: unknown) => {
+  if (val === "" || val === null || val === undefined) return undefined;
+  const num = Number(val);
+  return isNaN(num) ? undefined : num;
+}
+
 // 食材 Schema
 export const ingredientSchema = z.object({
   id: z.string().optional(), // 用于编辑模式
@@ -39,7 +46,7 @@ export const stepSchema = z.object({
   description: z.string().optional(),
   
   // 核心调度数据
-  duration: z.number().min(0, "时长不能为负").default(0), // 秒
+  duration: z.preprocess(safeNumber, z.number().min(0, "时长不能为负").default(0)), // 秒
   step_type: z.preprocess(emptyToUndefined, StepTypeEnum.default("cook")),
   
   // 并行与资源
@@ -49,7 +56,7 @@ export const stepSchema = z.object({
   
   // 物理环境
   equipment: z.preprocess(emptyToUndefined, z.string().optional()), // 存 value, 如 "wok"
-  temperature_c: z.preprocess((val) => (val === "" ? undefined : Number(val)), z.number().optional()), // 处理空字符串转数字
+  temperature_c: z.preprocess(safeNumber, z.number().optional()), // 处理空字符串转数字
   heat_level: z.preprocess(emptyToUndefined, z.string().optional()), // 存 value, 如 "high"
   
   // 依赖关系 (V2)
@@ -69,7 +76,7 @@ export const recipeSchema = z.object({
   
   cuisine: z.preprocess(emptyToUndefined, CuisineEnum.optional()),
   difficulty: z.preprocess(emptyToUndefined, DifficultyEnum.default("medium")),
-  servings: z.preprocess((val) => Number(val), z.number().min(1).default(2)),
+  servings: z.preprocess(safeNumber, z.number().min(1).default(2)),
   
   is_public: z.boolean().default(false),
   
