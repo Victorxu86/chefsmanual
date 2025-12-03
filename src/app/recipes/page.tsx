@@ -1,6 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 import { DashboardHeader } from "@/components/DashboardHeader"
-import { Plus, Clock, Flame, ChefHat, ArrowRight } from "lucide-react"
+import { Plus, Clock, Flame, ChefHat, ArrowRight, Edit2 } from "lucide-react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 
@@ -42,52 +42,62 @@ export default async function RecipesPage() {
         {recipes && recipes.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {recipes.map((recipe) => (
-              <Link 
+              <div 
                 key={recipe.id} 
-                href={`/recipes/${recipe.id}`}
-                className="group block rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] overflow-hidden hover:border-[var(--color-accent)] transition-all hover:shadow-lg"
+                className="group block rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] overflow-hidden hover:border-[var(--color-accent)] transition-all hover:shadow-lg relative"
               >
-                {/* Cover Image Placeholder */}
-                <div className="aspect-video bg-[var(--color-accent-light)] flex items-center justify-center text-[var(--color-accent)] relative overflow-hidden">
-                  {recipe.cover_image ? (
-                    <img src={recipe.cover_image} alt={recipe.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <ChefHat className="h-12 w-12 opacity-20" />
-                  )}
-                  
-                  {/* Badges */}
-                  <div className="absolute top-2 right-2 flex gap-1">
-                    {recipe.difficulty && (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-black/20 text-white backdrop-blur-md">
-                        {recipe.difficulty}
-                      </span>
-                    )}
-                  </div>
-                </div>
+                {/* Edit Button (Absolute) */}
+                <Link
+                  href={`/recipes/${recipe.id}/edit`}
+                  className="absolute top-2 left-2 z-20 p-2 rounded-full bg-white/80 backdrop-blur text-[var(--color-muted)] hover:text-[var(--color-accent)] opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                  title="编辑菜谱"
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Link>
 
-                <div className="p-4">
-                  <h3 className="font-bold text-[var(--color-main)] text-lg mb-2 line-clamp-1 group-hover:text-[var(--color-accent)] transition-colors">
-                    {recipe.title}
-                  </h3>
-                  <p className="text-sm text-[var(--color-muted)] line-clamp-2 mb-4 h-10">
-                    {recipe.description || "暂无描述"}
-                  </p>
-                  
-                  <div className="flex items-center justify-between text-xs text-[var(--color-muted)] pt-4 border-t border-[var(--color-border-theme)]">
-                    <div className="flex items-center gap-3">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {recipe.total_time_minutes}m
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Flame className="h-3 w-3" />
-                        {recipe.active_time_minutes}m Active
-                      </span>
+                <Link href={`/recipes/${recipe.id}`} className="block">
+                  {/* Cover Image Placeholder */}
+                  <div className="aspect-video bg-[var(--color-accent-light)] flex items-center justify-center text-[var(--color-accent)] relative overflow-hidden">
+                    {recipe.cover_image ? (
+                      <img src={recipe.cover_image} alt={recipe.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <ChefHat className="h-12 w-12 opacity-20" />
+                    )}
+                    
+                    {/* Badges */}
+                    <div className="absolute top-2 right-2 flex gap-1">
+                      {recipe.difficulty && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-black/20 text-white backdrop-blur-md">
+                          {recipe.difficulty}
+                        </span>
+                      )}
                     </div>
-                    <ArrowRight className="h-3 w-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
                   </div>
-                </div>
-              </Link>
+
+                  <div className="p-4">
+                    <h3 className="font-bold text-[var(--color-main)] text-lg mb-2 line-clamp-1 group-hover:text-[var(--color-accent)] transition-colors">
+                      {recipe.title}
+                    </h3>
+                    <p className="text-sm text-[var(--color-muted)] line-clamp-2 mb-4 h-10">
+                      {recipe.description || "暂无描述"}
+                    </p>
+                    
+                    <div className="flex items-center justify-between text-xs text-[var(--color-muted)] pt-4 border-t border-[var(--color-border-theme)]">
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {recipe.total_time_minutes}m
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Flame className="h-3 w-3" />
+                          {recipe.active_time_minutes}m Active
+                        </span>
+                      </div>
+                      <ArrowRight className="h-3 w-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+                    </div>
+                  </div>
+                </Link>
+              </div>
             ))}
           </div>
         ) : (
@@ -111,4 +121,3 @@ export default async function RecipesPage() {
     </div>
   )
 }
-
