@@ -37,16 +37,12 @@ export function Step3Timeline() {
   const ingredients = useWatch({ control, name: "ingredients" }) || []
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   
-  // 动作选择器状态：当前选中的 Realm ID 和 Category ID
   const [activeRealmId, setActiveRealmId] = useState<string | null>(null)
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null)
 
-  // 当切换步骤时，重置选择器状态，或者尝试根据已有数据回填
   useEffect(() => {
     if (selectedIndex !== null) {
-      // 这里可以做一些回填逻辑，但为了简单先重置
-      // setActiveRealmId(null)
-      // setActiveCategoryId(null)
+      // 可以在这里做回填逻辑
     }
   }, [selectedIndex])
 
@@ -62,13 +58,12 @@ export function Step3Timeline() {
       _selectedIngredients: [] 
     })
     setSelectedIndex(fields.length)
-    setActiveRealmId(ACTION_HIERARCHY[0].id) // 默认选中第一个大类
+    setActiveRealmId(ACTION_HIERARCHY[0].id)
     setActiveCategoryId(null)
   }
 
   const selectedStep: any = typeof selectedIndex === 'number' ? fields[selectedIndex] : null
   
-  // 核心逻辑：自动生成指令文本
   const generateInstruction = (step: any, updates: any = {}) => {
     const merged = { ...step, ...updates }
     const actionKey = merged._actionKey
@@ -124,18 +119,15 @@ export function Step3Timeline() {
     return idx === -1 ? TIME_STEPS.length - 1 : idx
   }
 
-  // === 全新设计的 Action Picker ===
   const renderActionPicker = () => {
     const currentRealm = ACTION_HIERARCHY.find(r => r.id === activeRealmId)
     const currentCategory = currentRealm?.categories.find(c => c.id === activeCategoryId)
     
     return (
       <div className="space-y-6">
-        
-        {/* Level 1: Realms (Horizontal Icons) */}
         <div>
           <label className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-2 block">第一步：选择领域</label>
-          <div className="flex justify-between gap-2 bg-[var(--color-page)] p-1 rounded-[var(--radius-theme)] border border-[var(--color-border-theme)]">
+          <div className="flex justify-between gap-2 bg-[var(--color-page)] p-1 rounded-[var(--radius-theme)] border border-[var(--color-border-theme)] overflow-x-auto">
             {ACTION_HIERARCHY.map((realm) => {
               const isActive = activeRealmId === realm.id
               return (
@@ -144,14 +136,14 @@ export function Step3Timeline() {
                   type="button"
                   onClick={() => { setActiveRealmId(realm.id); setActiveCategoryId(null); }}
                   className={`
-                    flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-md transition-all duration-300 relative
+                    flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-md transition-all duration-300 relative min-w-[60px]
                     ${isActive 
                       ? 'bg-white text-[var(--color-accent)] shadow-sm scale-105 z-10' 
                       : 'text-[var(--color-muted)] hover:text-[var(--color-main)] hover:bg-black/5'}
                   `}
                 >
                   <span className="text-xl mb-1">{realm.icon}</span>
-                  <span className="text-[10px] font-bold scale-90">{realm.label.split('/')[0]}</span>
+                  <span className="text-[10px] font-bold scale-90 whitespace-nowrap">{realm.label.split('/')[0]}</span>
                   {isActive && <div className="absolute -bottom-1 w-1 h-1 rounded-full bg-[var(--color-accent)]" />}
                 </button>
               )
@@ -159,7 +151,6 @@ export function Step3Timeline() {
           </div>
         </div>
 
-        {/* Level 2: Categories (Flowing Tags) */}
         <div className={`transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] overflow-hidden ${activeRealmId ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
           <label className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-2 block">第二步：选择类别</label>
           <div className="flex flex-wrap gap-2">
@@ -171,7 +162,7 @@ export function Step3Timeline() {
                   type="button"
                   onClick={() => setActiveCategoryId(cat.id)}
                   className={`
-                    px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 border
+                    px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 border whitespace-nowrap
                     ${isActive 
                       ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)] shadow-md transform -translate-y-0.5' 
                       : 'bg-[var(--color-card)] text-[var(--color-muted)] border-[var(--color-border-theme)] hover:border-[var(--color-accent)] hover:text-[var(--color-main)]'}
@@ -184,7 +175,6 @@ export function Step3Timeline() {
           </div>
         </div>
 
-        {/* Level 3: Actions (Clean Grid) */}
         <div className={`transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] overflow-hidden ${activeCategoryId ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
           <label className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-2 block">第三步：具体动作</label>
           <div className="grid grid-cols-3 gap-2 pb-1">
@@ -209,19 +199,23 @@ export function Step3Timeline() {
             })}
           </div>
         </div>
-
       </div>
     )
   }
 
-  // 获取当前选中的 Action 定义
   // @ts-ignore
   const currentActionDef = selectedStep?._actionKey ? ACTIONS[selectedStep._actionKey] : null
+  
+  // 安全获取 params 数组
+  const currentParams = useMemo(() => {
+    if (!currentActionDef || !Array.isArray(currentActionDef.params)) return []
+    return currentActionDef.params as string[]
+  }, [currentActionDef])
 
   return (
-    <div className="flex h-[600px] gap-6 animate-in fade-in duration-500">
+    <div className="flex flex-col md:flex-row h-[600px] gap-6 animate-in fade-in duration-500 relative">
       
-      {/* ================== 左侧：时间轴流 ================== */}
+      {/* ================== 左侧：时间轴流 (Master) ================== */}
       <div 
         className="flex-1 flex flex-col bg-[var(--color-card)] rounded-[var(--radius-theme)] border border-[var(--color-border-theme)] overflow-hidden shadow-sm"
         onClick={() => fields.length === 0 && handleAddStep()}
@@ -327,9 +321,12 @@ export function Step3Timeline() {
       </div>
 
       {/* ================== 右侧：配置面板 (Detail) ================== */}
+      {/* Mobile: Bottom Sheet (Fixed) | Desktop: Side Panel (Relative) */}
       <div className={`
-        w-96 bg-[var(--color-card)] rounded-[var(--radius-theme)] border border-[var(--color-border-theme)] shadow-xl flex flex-col transition-all duration-300
-        ${selectedIndex !== null ? 'translate-x-0 opacity-100' : 'translate-x-10 opacity-0 pointer-events-none hidden'}
+        fixed inset-x-0 bottom-0 z-50 bg-[var(--color-card)] rounded-t-2xl shadow-2xl border-t border-[var(--color-border-theme)] flex flex-col transition-transform duration-300
+        md:relative md:inset-auto md:w-96 md:rounded-[var(--radius-theme)] md:border md:shadow-xl md:translate-y-0
+        ${selectedIndex !== null ? 'translate-y-0' : 'translate-y-full md:translate-x-10 md:opacity-0 md:pointer-events-none md:hidden'}
+        h-[80vh] md:h-auto
       `}>
         {selectedStep && (
           <>
@@ -340,17 +337,17 @@ export function Step3Timeline() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-8">
+            <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-24 md:pb-6">
               
-              {/* 1. 动作选择器 (Updated Flowing Ribbon UI) */}
+              {/* 1. 动作选择器 */}
               {renderActionPicker()}
 
-              {/* 2. 动态参数 (只在选中 Action 后显示) */}
+              {/* 2. 动态参数 */}
               {currentActionDef && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4 border-t border-[var(--color-border-theme)]">
                   
                   {/* 食材选择 */}
-                  {(currentActionDef.params as string[]).includes("ingredients") || (currentActionDef.params as string[]).includes("ingredient") ? (
+                  {currentParams.includes("ingredients") || currentParams.includes("ingredient") ? (
                     <div>
                       <label className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-2 block">选择食材</label>
                       <div className="flex flex-wrap gap-2">
@@ -414,9 +411,9 @@ export function Step3Timeline() {
                     </div>
                   </div>
 
-                  {/* 环境配置 (根据 params 显示) */}
+                  {/* 环境配置 */}
                   <div className="grid grid-cols-2 gap-4">
-                    {(currentActionDef.params as string[]).includes("tool") && (
+                    {currentParams.includes("tool") && (
                       <div>
                         <label className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-2 block">设备</label>
                         <select
@@ -429,7 +426,7 @@ export function Step3Timeline() {
                         </select>
                       </div>
                     )}
-                    {(currentActionDef.params as string[]).includes("heat") && (
+                    {currentParams.includes("heat") && (
                       <div>
                         <label className="text-[10px] font-bold text-[var(--color-muted)] uppercase tracking-wider mb-2 block">火力</label>
                         <select
@@ -451,6 +448,14 @@ export function Step3Timeline() {
           </>
         )}
       </div>
+      
+      {/* Mobile Backdrop */}
+      {selectedIndex !== null && (
+        <div 
+          className="fixed inset-0 bg-black/20 z-40 md:hidden backdrop-blur-sm"
+          onClick={() => setSelectedIndex(null)}
+        />
+      )}
 
     </div>
   )
