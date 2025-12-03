@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { KitchenScheduler, ScheduledBlock } from "@/lib/scheduler"
-import { ChefHat, Play, Check, Settings, Flame, Mic, Box } from "lucide-react"
+import { ChefHat, Play, Check, Settings, Flame, Mic, Box, Clock } from "lucide-react"
 
 export function SessionClient({ recipes }: { recipes: any[] }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
