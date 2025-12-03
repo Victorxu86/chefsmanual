@@ -1,17 +1,35 @@
 "use client"
 
-import { useFormContext } from "react-hook-form"
+import { useFormContext, useController } from "react-hook-form"
 import { RecipeFormValues } from "@/lib/schemas"
 import { CUISINES, DIFFICULTIES } from "@/lib/constants"
+import { ImageUpload } from "@/components/ui/ImageUpload"
 
 export function Step1Meta() {
-  const { register, formState: { errors } } = useFormContext<RecipeFormValues>()
+  const { register, control, formState: { errors } } = useFormContext<RecipeFormValues>()
+  
+  // 使用 useController 来管理 cover_image，因为它不是标准的 input
+  const { field: coverImageField } = useController({
+    name: "cover_image",
+    control,
+  })
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
       <div className="p-6 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] space-y-6">
         <h2 className="text-xl font-bold text-[var(--color-main)] mb-4">基础信息</h2>
         
+        {/* 封面图上传 */}
+        <div>
+          <label className="block text-sm font-medium text-[var(--color-main)] mb-2">
+            菜谱封面
+          </label>
+          <ImageUpload 
+            value={coverImageField.value} 
+            onChange={coverImageField.onChange}
+          />
+        </div>
+
         {/* 标题 */}
         <div>
           <label className="block text-sm font-medium text-[var(--color-main)] mb-1">
@@ -92,4 +110,3 @@ export function Step1Meta() {
     </div>
   )
 }
-
