@@ -1,9 +1,9 @@
 import { createClient } from "@/utils/supabase/server"
-import { PlannerClient } from "./PlannerClient"
+import { SessionClient } from "./SessionClient"
 import { DashboardHeader } from "@/components/DashboardHeader"
 import { redirect } from "next/navigation"
 
-export default async function PlannerPage() {
+export default async function SessionPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   
@@ -22,8 +22,7 @@ export default async function PlannerPage() {
   return (
     <div className="min-h-screen bg-[var(--color-page)] transition-colors duration-700">
       <DashboardHeader userEmail={user.email || ""} />
-      <PlannerClient recipes={recipes || []} />
+      <SessionClient recipes={recipes || []} />
     </div>
   )
 }
-
