@@ -132,20 +132,24 @@ export function LiveSessionClient() {
       // A. Identify Active Tasks
       nextTasks.forEach(task => {
         if (task.status === 'pending') {
-            if (isDependencyMet(task, nextTasks)) {
-                if (prev.elapsedSeconds >= task.startTime || task.forceActive) {
-                    task.status = 'active'
-                    task.actualStartTime = prev.elapsedSeconds // Start now
-                    hasChanges = true
-                }
+            const readyTime = prev.elapsedSeconds >= task.startTime;
+            const forced = task.forceActive;
+            const depsMet = isDependencyMet(task, nextTasks);
+            
+            // Allow activation if forced (manual override) OR dependencies met and time ready
+            // Note: Ideally, if forced, we skip dependency check? 
+            // The user said "regardless of whether the previous one is necessary".
+            // So if forced, we activate.
+            
+            if (forced || (depsMet && readyTime)) {
+                task.status = 'active'
+                task.actualStartTime = prev.elapsedSeconds // Start now
+                hasChanges = true
             }
         }
       })
 
       // B. Update Chef Assignments
-      // Important: Only trigger updates if tasks actually changed or time progressed significantly 
-      // (Actually, we need to run this on every tick if we want to auto-activate tasks based on time)
-      // But here we just call it.
       const nextChefs = updateChefAssignments(nextTasks, prev.chefs, prev.elapsedSeconds)
       
       // Force update if tasks changed status
@@ -225,6 +229,27 @@ export function LiveSessionClient() {
     })
   }
 
+  // New handler for manual force start from waiting screen
+  const handleForceStart = (runtimeId: string) => {
+    setLiveState(prev => {
+      const nextTasks = [...prev.tasks]
+      const taskIndex = nextTasks.findIndex(t => t.runtimeId === runtimeId)
+      if (taskIndex === -1) return prev
+      
+      // Force activate immediately
+      nextTasks[taskIndex] = {
+          ...nextTasks[taskIndex],
+          forceActive: true,
+          status: 'active',
+          actualStartTime: prev.elapsedSeconds
+      }
+      
+      // Update assignments
+      const nextChefs = updateChefAssignments(nextTasks, prev.chefs, prev.elapsedSeconds)
+      return { ...prev, tasks: nextTasks, chefs: nextChefs }
+    })
+  }
+
   const handleUndo = (chefId: string) => {
     setLiveState(prev => {
         // Find the most recently completed task for this chef
@@ -299,6 +324,7 @@ export function LiveSessionClient() {
             elapsedSeconds={liveState.elapsedSeconds}
             onComplete={handleCompleteTask}
             onUndo={() => handleUndo(liveState.chefs[0].id)}
+            onForceStart={handleForceStart}
             isSingleMode={isSingleChef}
         />
 
@@ -311,6 +337,7 @@ export function LiveSessionClient() {
                     elapsedSeconds={liveState.elapsedSeconds}
                     onComplete={handleCompleteTask}
                     onUndo={() => handleUndo(liveState.chefs[1].id)}
+                    onForceStart={handleForceStart}
                     isSecondary
                 />
             ) : (
@@ -334,9 +361,27 @@ export function LiveSessionClient() {
   )
 }
 
-function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onUndo, isSecondary = false, isSingleMode = false }: any) {
+function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onUndo, onForceStart, isSecondary = false, isSingleMode = false }: any) {
     const currentTask = allTasks.find((t: any) => t.runtimeId === chef.currentTaskId)
     const nextTask = allTasks.find((t: any) => t.runtimeId === chef.nextTaskId)
+
+    // Find blocking info
+    const getBlockingInfo = () => {
+        if (!nextTask) return null;
+        // Find tasks that block nextTask
+        // Same recipe, lower order, not completed
+        const blocking = allTasks.filter((t: LiveTask) => 
+            t.step.recipeId === nextTask.step.recipeId && 
+            t.step.stepOrder < nextTask.step.stepOrder &&
+            t.status !== 'completed'
+        );
+        
+        if (blocking.length === 0) return null;
+        // Return first blocking task
+        return blocking[0];
+    }
+    
+    const blockingTask = !currentTask ? getBlockingInfo() : null;
 
     return (
         <div className={`p-6 flex flex-col relative h-full ${isSecondary ? 'bg-[var(--color-card)]/30' : 'bg-[var(--color-page)]'}`}>
@@ -401,10 +446,38 @@ function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onUndo, isSecond
                     </div>
                 </div>
             ) : (
-                <div className="text-[var(--color-muted)] text-center animate-pulse">
-                    <Clock className="h-16 w-16 mx-auto mb-6 opacity-20" />
-                    <p className="text-2xl font-medium">等待任务分配...</p>
-                    <p className="text-base mt-2 opacity-60">正在等待前置步骤完成或时间点</p>
+                <div className="text-[var(--color-muted)] text-center animate-pulse flex flex-col items-center gap-4">
+                    <Clock className="h-16 w-16 opacity-20" />
+                    <div>
+                        <p className="text-2xl font-medium">等待任务分配...</p>
+                        {blockingTask ? (
+                            <div className="mt-2 bg-[var(--color-card)] border border-[var(--color-border-theme)] p-3 rounded-lg inline-flex items-center gap-3 text-sm">
+                                <span className="opacity-80">等待:</span>
+                                <span className="font-bold text-[var(--color-main)]">{blockingTask.step.instruction}</span>
+                                <span className="text-xs bg-black/5 px-1.5 py-0.5 rounded">{Math.round(blockingTask.step.duration/60)}m</span>
+                                {onForceStart && nextTask && (
+                                    <button 
+                                        onClick={() => onForceStart(nextTask.runtimeId)}
+                                        className="ml-2 px-3 py-1 bg-[var(--color-accent)] text-white rounded text-xs font-bold hover:opacity-90 transition-opacity"
+                                    >
+                                        立即开始
+                                    </button>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="mt-2 flex flex-col items-center gap-2">
+                                <p className="text-base opacity-60">正在等待时间点或调度...</p>
+                                {onForceStart && nextTask && (
+                                    <button 
+                                        onClick={() => onForceStart(nextTask.runtimeId)}
+                                        className="px-4 py-1.5 bg-[var(--color-accent)] text-white rounded-full text-xs font-bold hover:opacity-90 transition-opacity shadow-md"
+                                    >
+                                        跳过等待，立即开始
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -413,7 +486,6 @@ function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onUndo, isSecond
                 <div className={`w-full ${isSingleMode ? 'max-w-3xl' : 'max-w-md'} opacity-60 hover:opacity-100 transition-opacity`}>
                     <div className="text-xs font-bold text-[var(--color-muted)] uppercase mb-2 pl-1">下个任务</div>
                     <div className="bg-[var(--color-card)] border border-[var(--color-border-theme)] p-4 rounded-lg flex items-center justify-between cursor-pointer group"
-                         onClick={() => {/* Optional: Allow peeking or jumping */}}
                     >
                         <div className="flex items-center gap-3">
                             <span className="font-bold text-[var(--color-main)] text-xl group-hover:text-[var(--color-accent)] transition-colors">
