@@ -195,8 +195,7 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h2 className="font-bold text-[var(--color-main)] flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  第三步：确认厨房资源
+                  厨房资源配置
                 </h2>
                 <p className="text-sm text-[var(--color-muted)]">
                   算法已分析您的菜谱，建议准备以下工具。您可以根据实际情况调整。
@@ -259,7 +258,7 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
             <h2 className="font-bold text-[var(--color-main)] text-lg">智能调度预览</h2>
             <button 
               disabled={selectedIds.size === 0}
-              className="px-6 py-2 bg-[var(--color-accent)] text-white rounded-full text-sm font-bold flex items-center gap-2 hover:bg-[var(--color-accent-dark)] shadow-lg shadow-[var(--color-accent)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95"
+              className="px-6 py-2 bg-[var(--color-accent)] text-white rounded-full text-sm font-bold flex items-center gap-2 hover:bg-[var(--color-accent-dark)] hover:text-white shadow-lg shadow-[var(--color-accent)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95"
             >
               <Play className="h-4 w-4" /> 开始烹饪导航
             </button>
