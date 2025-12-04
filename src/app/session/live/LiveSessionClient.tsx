@@ -143,12 +143,18 @@ export function LiveSessionClient() {
       })
 
       // B. Update Chef Assignments
+      // Important: Only trigger updates if tasks actually changed or time progressed significantly 
+      // (Actually, we need to run this on every tick if we want to auto-activate tasks based on time)
+      // But here we just call it.
       const nextChefs = updateChefAssignments(nextTasks, prev.chefs, prev.elapsedSeconds)
+      
+      // Force update if tasks changed status
+      const tasksChanged = JSON.stringify(nextTasks.map(t => t.status)) !== JSON.stringify(prev.tasks.map(t => t.status))
       
       // Check if chefs changed
       const chefsChanged = JSON.stringify(nextChefs) !== JSON.stringify(prev.chefs)
 
-      if (!hasChanges && !chefsChanged) return prev
+      if (!hasChanges && !chefsChanged && !tasksChanged) return prev
       return { ...prev, tasks: nextTasks, chefs: nextChefs }
     })
   }, [liveState.elapsedSeconds, sessionData])
@@ -174,9 +180,7 @@ export function LiveSessionClient() {
 
       // 2. Cross-Task Trigger (Strict Dependency & Schedule Check)
       // Force activate logic:
-      // We only force activate tasks that are truly next in line for a chef AND have dependencies met.
-      // We CANNOT skip the sequence.
-
+      
       const activeChefIds = new Set(
           nextTasks.filter(t => t.status === 'active').map(t => t.resourceId)
       )
@@ -190,27 +194,25 @@ export function LiveSessionClient() {
       sortedPendingTasks.forEach((task) => {
           if (!activeChefIds.has(task.resourceId)) {
              // Check if this is the very first pending task for this chef
+             // We must ensure we don't jump the queue of our own tasks
              const isFirstForChef = sortedPendingTasks.find(t => t.resourceId === task.resourceId)?.runtimeId === task.runtimeId
 
-             // Requirement 1: Prep tasks exception
-             // If it's a 'prep' task, allow it to start even if it's not strictly the next "scheduled" block (if we were strictly time-bound),
-             // BUT we still respect the order queue (isFirstForChef) to prevent chaos.
-             // Actually, isFirstForChef guarantees we don't jump over an earlier task assigned to me.
-             // The user wants: "If it is a prep task... can move ahead".
-             // This implies we should be aggressive with forceActive for prep tasks.
-             // If 'isFirstForChef' is true, we are already 'moving ahead' of the scheduled time by using forceActive.
-             // So the existing logic covers "move ahead" of time.
-             
-             // Requirement: "Until hitting a task requiring other person"
-             // This is covered by isDependencyMet.
+             // Logic Update: 
+             // If it is the first task for this chef AND dependencies are met, we ALWAYS allow activation.
+             // Why? Because if the user clicked "Complete", they are signaling readiness.
+             // The concept of "time" in a schedule is a *minimum start time* relative to the meal end.
+             // But if we are ahead of schedule, we should absolutely be allowed to proceed.
+             // The only hard constraint is DEPENDENCY (e.g. wait for meat to be cut).
              
              if (isFirstForChef && isDependencyMet(task, nextTasks)) {
                  // Force Activate!
                  nextTasks[task.originalIndex] = {
                      ...task,
-                     forceActive: true
+                     forceActive: true,
+                     status: 'active', // Explicitly set active here to be safe
+                     actualStartTime: prev.elapsedSeconds // Start NOW
                  }
-                 // Mark chef as busy
+                 // Mark chef as busy so we don't activate 2 tasks for same person
                  activeChefIds.add(task.resourceId)
              }
           }
