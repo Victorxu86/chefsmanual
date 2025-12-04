@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useForm, FormProvider } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { recipeSchema } from "@/lib/schemas"
@@ -30,44 +30,64 @@ export function RecipeWizard({ initialData, isEditMode = false }: RecipeWizardPr
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Transform initial data to match form structure if needed
-  // 假设 initialData 已经是我们想要的结构，或者需要简单的映射
-  const defaultValues = initialData ? {
-    title: initialData.title,
-    description: initialData.description,
-    cover_image: initialData.cover_image || "",
-    servings: initialData.servings,
-    difficulty: initialData.difficulty,
-    category: initialData.category || "main",
-    cuisine: initialData.cuisine,
-    is_public: initialData.is_public,
-    ingredients: initialData.recipe_ingredients || [],
-    // Step data transformation might be needed here to match V5 format
-    // For now assuming steps match except for _temp fields
-    steps: (initialData.recipe_steps || []).map((s: any) => ({
-      ...s,
-      duration: s.duration_seconds, // Map back seconds to duration
-      // _selectedIngredients needs reverse mapping from UUIDs to indices if we want to support re-editing ingredients linkage
-      // This is complex: Backend has UUIDs, Frontend uses array indices.
-      // For V1 Edit, we might lose linkage visualization in Step 3 form unless we map UUIDs back to current array indices.
-    }))
-  } : {
-    title: "",
-    description: "",
-    cover_image: "",
-    servings: 2,
-    difficulty: "medium",
-    category: "main",
-    is_public: false,
-    ingredients: [],
-    steps: []
-  }
+  // 数据清洗函数：确保所有字段都是安全的，特别是将 null 转为 "" 或 undefined
+  // 这样可以避免前端组件崩溃，并满足 Zod 的 optional/default 要求
+  const cleanData = useMemo(() => {
+    if (!initialData) return {
+      title: "",
+      description: "",
+      cover_image: "",
+      servings: 2,
+      difficulty: "medium",
+      category: "main",
+      cuisine: "", // Cuisine 需要为空字符串或 undefined
+      is_public: false,
+      ingredients: [],
+      steps: []
+    }
+
+    return {
+      title: initialData.title || "",
+      description: initialData.description || "",
+      cover_image: initialData.cover_image || "",
+      servings: initialData.servings || 2,
+      difficulty: initialData.difficulty || "medium",
+      category: initialData.category || "main",
+      cuisine: initialData.cuisine || "", // 确保不是 null
+      is_public: initialData.is_public || false,
+      ingredients: (initialData.recipe_ingredients || []).map((ing: any) => ({
+        ...ing,
+        amount: ing.amount || "",
+        unit: ing.unit || "",
+        category: ing.category || "other",
+        prep_note: ing.prep_note || ""
+      })),
+      steps: (initialData.recipe_steps || []).map((s: any) => ({
+        ...s,
+        duration: s.duration_seconds,
+        instruction: s.instruction || "",
+        description: s.description || "",
+        equipment: s.equipment || "",
+        heat_level: s.heat_level || "",
+        // 尝试恢复 _selectedIngredients (从 input_ingredients UUID 数组)
+        // 这需要我们有 ingredients 列表和他们的 ID
+        // 但在这里我们只有 ingredients 的初始数据，且 form 中的 ingredients 顺序可能变了?
+        // 简单的做法：我们假设 initialData.recipe_ingredients 的顺序就是 form 中的顺序
+        // 那么我们可以通过 UUID 反查 index
+        _selectedIngredients: (s.input_ingredients || []).map((uuid: string) => {
+          const idx = (initialData.recipe_ingredients || []).findIndex((ing: any) => ing.id === uuid)
+          return idx !== -1 ? idx.toString() : null
+        }).filter((idx: string | null) => idx !== null)
+      }))
+    }
+  }, [initialData])
 
   const methods = useForm({
     resolver: zodResolver(recipeSchema),
-    defaultValues: defaultValues as any
+    defaultValues: cleanData as any
   })
 
+  // ... (其余代码保持不变)
   const onSubmit = async (data: any) => {
     setIsSubmitting(true)
     try {
@@ -201,4 +221,3 @@ export function RecipeWizard({ initialData, isEditMode = false }: RecipeWizardPr
     </main>
   )
 }
-
