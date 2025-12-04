@@ -109,7 +109,14 @@ export class KitchenScheduler {
     this.initResourceStates()
     const outputBlocks: ScheduledBlock[] = []
 
-    // 1. 预处理
+    // 1. 预处理：备料合并 (Ingredient Merging)
+    // 扫描所有 "切/洗" 类的 prep 步骤
+    // 如果发现多个菜谱都有 "切葱" 或 "切蒜"，将它们合并成一个 "统一备料" 任务
+    // 并将这个新任务作为这些菜谱第一步的前置依赖 (目前 Scheduler 不支持显式依赖，我们通过将其放在最早的菜谱链头来实现)
+    
+    // (由于 Scheduler 目前的架构是基于 Recipe Chain 的倒序排课，完全独立的 Merged Task 比较难插入)
+    // (策略：我们将合并后的任务挂载到 "最先需要它的那个菜谱" 上，并增加时长)
+
     const allTaskChains = recipes.map((recipe, idx) => {
       const color = `hsl(${idx * 60}, 70%, 85%)` 
       const category = recipe.category || 'main'
