@@ -39,8 +39,20 @@ interface ResourcePool {
 class ResourceTimeline {
   private occupied: { start: number, end: number, load: number, temp?: number }[] = []
   public totalBookedTime: number = 0
+  public capability?: string // e.g. "high_heat", "normal"
 
-  isAvailable(start: number, end: number, capacity: number, required: number, temp?: number): boolean {
+  constructor(capability?: string) {
+    this.capability = capability
+  }
+
+  isAvailable(start: number, end: number, capacity: number, required: number, temp?: number, requiredCapability?: string): boolean {
+    // 1. 检查能力是否匹配 (如果任务需要特定能力，而当前资源没有，直接不可用)
+    if (requiredCapability && this.capability !== requiredCapability) {
+        // 特殊情况：如果有 "high_heat" 能力的资源，可以兼容 "normal" 任务，反之不行
+        // 但为了简单，先严格匹配，或者允许 high_heat 兼容无要求的任务
+        if (requiredCapability === 'high_heat' && this.capability !== 'high_heat') return false
+    }
+
     const overlaps = this.occupied.filter(interval => 
       !(interval.end <= start || interval.start >= end)
     )
@@ -105,7 +117,8 @@ export class KitchenScheduler {
   private initResourceStates() {
     this.resourceStates = {
       chef: Array(this.resources.chef).fill(null).map(() => new ResourceTimeline()),
-      stove: Array(this.resources.stove).fill(null).map(() => new ResourceTimeline()),
+      // 初始化灶台：如果有2个灶，第1个是猛火灶，第2个是普通灶
+      stove: Array(this.resources.stove).fill(null).map((_, i) => new ResourceTimeline(i === 0 ? 'high_heat' : 'normal')),
       oven: Array(this.resources.oven).fill(null).map(() => new ResourceTimeline()),
       board: Array(this.resources.board).fill(null).map(() => new ResourceTimeline()),
       bowl: Array(this.resources.bowl).fill(null).map(() => new ResourceTimeline()),
@@ -243,17 +256,23 @@ export class KitchenScheduler {
   }
 
   // ... (identifyRequirements, tryAllocate, check helpers 保持不变)
-  private identifyRequirements(step: SchedulerStep): { type: string, load: number, temp?: number }[] {
-    const reqs: { type: string, load: number, temp?: number }[] = []
+  private identifyRequirements(step: SchedulerStep): { type: string, load: number, temp?: number, capability?: string }[] {
+    const reqs: { type: string, load: number, temp?: number, capability?: string }[] = []
     if (step.isActive) reqs.push({ type: 'chef', load: 1.0 })
-    if (this.isStoveRequired(step)) reqs.push({ type: 'stove', load: 1.0 })
+    
+    // Stove 逻辑细化
+    if (this.isStoveRequired(step)) {
+        const isHighHeat = ['爆炒', '大火', 'stir-fry', 'high heat'].some(k => step.instruction.toLowerCase().includes(k))
+        reqs.push({ type: 'stove', load: 1.0, capability: isHighHeat ? 'high_heat' : undefined })
+    }
+
     if (this.isOvenRequired(step)) reqs.push({ type: 'oven', load: 1.0, temp: step.temp })
     if (this.isBoardRequired(step)) reqs.push({ type: 'board', load: 0.5 })
     if (this.isBowlRequired(step)) reqs.push({ type: 'bowl', load: 1.0 })
     return reqs
   }
 
-  private tryAllocate(step: SchedulerStep, reqs: { type: string, load: number, temp?: number }[], start: number, end: number): { type: string, index: number, load: number }[] | null {
+  private tryAllocate(step: SchedulerStep, reqs: { type: string, load: number, temp?: number, capability?: string }[], start: number, end: number): { type: string, index: number, load: number }[] | null {
     const allocation: { type: string, index: number, load: number }[] = []
     for (const req of reqs) {
       const timelines = this.resourceStates[req.type]
@@ -264,7 +283,7 @@ export class KitchenScheduler {
          // 找出所有当前空闲的厨师
          const candidates: number[] = []
          for (let i = 0; i < timelines.length; i++) {
-           if (timelines[i].isAvailable(start, end, 1.0, req.load, req.temp)) {
+           if (timelines[i].isAvailable(start, end, 1.0, req.load, req.temp, req.capability)) {
              candidates.push(i)
            }
          }
@@ -288,7 +307,7 @@ export class KitchenScheduler {
         // 其他资源 (Stove, Oven, etc.) 依然采用贪心算法，优先填满第一个
         let foundIndex = -1
         for (let i = 0; i < timelines.length; i++) {
-            if (timelines[i].isAvailable(start, end, 1.0, req.load, req.temp)) {
+            if (timelines[i].isAvailable(start, end, 1.0, req.load, req.temp, req.capability)) {
             foundIndex = i
             break
             }
