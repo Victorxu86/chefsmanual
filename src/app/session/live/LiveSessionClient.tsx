@@ -53,6 +53,23 @@ export function LiveSessionClient() {
     return dependencies.every(d => d.status === 'completed')
   }
 
+  // Helper: Update Chef Assignments based on current tasks
+  // Returns updated chef list
+  const updateChefAssignments = (tasks: LiveTask[], currentChefs: ChefState[], elapsedSeconds: number) => {
+    return currentChefs.map(chef => {
+        const activeTask = tasks.find(t => t.status === 'active' && t.resourceId === chef.id)
+        const nextTask = tasks
+            .filter(t => t.status === 'pending' && t.resourceId === chef.id)
+            .sort((a, b) => a.startTime - b.startTime)[0]
+        
+        return {
+            ...chef,
+            currentTaskId: activeTask?.runtimeId,
+            nextTaskId: nextTask?.runtimeId
+        }
+    })
+  }
+
   // 1. Initialize from LocalStorage
   useEffect(() => {
     const raw = localStorage.getItem('cooking_session')
@@ -110,15 +127,11 @@ export function LiveSessionClient() {
 
     setLiveState(prev => {
       const nextTasks = [...prev.tasks]
-      const nextChefs = [...prev.chefs]
       let hasChanges = false
 
       // A. Identify Active Tasks
-      // Logic: Task can start if:
-      // 1. Dependencies met AND (Time reached OR Force Active)
       nextTasks.forEach(task => {
         if (task.status === 'pending') {
-            // Crucial: Check dependencies first
             if (isDependencyMet(task, nextTasks)) {
                 if (prev.elapsedSeconds >= task.startTime || task.forceActive) {
                     task.status = 'active'
@@ -130,25 +143,12 @@ export function LiveSessionClient() {
       })
 
       // B. Update Chef Assignments
-      nextChefs.forEach(chef => {
-        // Find active task for this chef
-        const activeTask = nextTasks.find(t => t.status === 'active' && t.resourceId === chef.id)
-        
-        // Find next pending task (that is NOT active)
-        // We sort by startTime to get the true next, but filter by dependency too ideally
-        // For display "Next Up", we just show the scheduled next, regardless of blocking
-        const nextTask = nextTasks
-            .filter(t => t.status === 'pending' && t.resourceId === chef.id)
-            .sort((a, b) => a.startTime - b.startTime)[0]
-        
-        if (chef.currentTaskId !== activeTask?.runtimeId || chef.nextTaskId !== nextTask?.runtimeId) {
-            chef.currentTaskId = activeTask?.runtimeId
-            chef.nextTaskId = nextTask?.runtimeId
-            hasChanges = true
-        }
-      })
+      const nextChefs = updateChefAssignments(nextTasks, prev.chefs, prev.elapsedSeconds)
+      
+      // Check if chefs changed
+      const chefsChanged = JSON.stringify(nextChefs) !== JSON.stringify(prev.chefs)
 
-      if (!hasChanges) return prev
+      if (!hasChanges && !chefsChanged) return prev
       return { ...prev, tasks: nextTasks, chefs: nextChefs }
     })
   }, [liveState.elapsedSeconds, sessionData])
@@ -190,9 +190,20 @@ export function LiveSessionClient() {
       sortedPendingTasks.forEach((task) => {
           if (!activeChefIds.has(task.resourceId)) {
              // Check if this is the very first pending task for this chef
-             // We must ensure we don't jump the queue
              const isFirstForChef = sortedPendingTasks.find(t => t.resourceId === task.resourceId)?.runtimeId === task.runtimeId
 
+             // Requirement 1: Prep tasks exception
+             // If it's a 'prep' task, allow it to start even if it's not strictly the next "scheduled" block (if we were strictly time-bound),
+             // BUT we still respect the order queue (isFirstForChef) to prevent chaos.
+             // Actually, isFirstForChef guarantees we don't jump over an earlier task assigned to me.
+             // The user wants: "If it is a prep task... can move ahead".
+             // This implies we should be aggressive with forceActive for prep tasks.
+             // If 'isFirstForChef' is true, we are already 'moving ahead' of the scheduled time by using forceActive.
+             // So the existing logic covers "move ahead" of time.
+             
+             // Requirement: "Until hitting a task requiring other person"
+             // This is covered by isDependencyMet.
+             
              if (isFirstForChef && isDependencyMet(task, nextTasks)) {
                  // Force Activate!
                  nextTasks[task.originalIndex] = {
@@ -204,8 +215,11 @@ export function LiveSessionClient() {
              }
           }
       })
+      
+      // 3. Update assignments IMMEDIATELY to avoid lag
+      const nextChefs = updateChefAssignments(nextTasks, prev.chefs, prev.elapsedSeconds)
 
-      return { ...prev, tasks: nextTasks }
+      return { ...prev, tasks: nextTasks, chefs: nextChefs }
     })
   }
 
@@ -241,8 +255,11 @@ export function LiveSessionClient() {
                  forceActive: false
              }
         }
+        
+        // 4. Update assignments IMMEDIATELY
+        const nextChefs = updateChefAssignments(nextTasks, prev.chefs, prev.elapsedSeconds)
 
-        return { ...prev, tasks: nextTasks }
+        return { ...prev, tasks: nextTasks, chefs: nextChefs }
     })
   }
 
@@ -255,18 +272,15 @@ export function LiveSessionClient() {
       {/* Header */}
       <div className="h-16 border-b border-[var(--color-border-theme)] flex items-center px-6 justify-between bg-[var(--color-card)] shrink-0">
         <div className="flex items-center gap-4">
-          <button onClick={() => router.back()} className="p-2 hover:bg-black/5 rounded-full text-[var(--color-main)] transition-colors">
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <h1 className="font-bold tracking-wider text-lg text-[var(--color-main)]">烹饪导航</h1>
-        </div>
-        <div className="flex items-center gap-4">
             <button 
               onClick={() => router.back()}
               className="px-4 py-1.5 rounded-full border border-[var(--color-border-theme)] text-sm font-bold text-[var(--color-muted)] hover:bg-[var(--color-accent)] hover:text-white hover:border-[var(--color-accent)] transition-all"
             >
               返回
             </button>
+          <h1 className="font-bold tracking-wider text-lg text-[var(--color-main)]">烹饪导航</h1>
+        </div>
+        <div className="flex items-center gap-4">
             <div className="font-mono text-xl font-bold text-[var(--color-accent)] flex items-center gap-2">
               <Clock className="h-5 w-5" />
               {new Date(liveState.elapsedSeconds * 1000).toISOString().substr(11, 8)}
