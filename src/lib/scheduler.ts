@@ -117,7 +117,15 @@ export class KitchenScheduler {
         category,
         steps: recipe.steps.map((s: any) => {
           let isActive = s.is_active
-          const actionEntry = Object.values(ACTIONS).find((a: any) => s.instruction.startsWith(a.label))
+          // 优化：使用 includes 而不是 startsWith，以便识别 "转小火炖" 中的 "炖"
+          const actionEntry = Object.values(ACTIONS).find((a: any) => {
+            // 1. 优先匹配 label 相同的
+            if (s.instruction.includes(a.label)) return true
+            // 2. 也可以匹配 id (英文key)
+            if (a.id && s.instruction.toLowerCase().includes(a.id.toLowerCase())) return true
+            return false
+          })
+          
           if (actionEntry && actionEntry.forcePassive !== undefined) {
             isActive = !actionEntry.forcePassive
           }
