@@ -446,33 +446,43 @@ function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onUndo, onForceS
                     </div>
                 </div>
             ) : (
-                <div className="text-[var(--color-muted)] text-center animate-pulse flex flex-col items-center gap-4">
-                    <Clock className="h-16 w-16 opacity-20" />
+                <div className="text-[var(--color-muted)] text-center flex flex-col items-center gap-4">
+                    <Clock className="h-16 w-16 opacity-20 animate-pulse" />
                     <div>
-                        <p className="text-2xl font-medium">等待任务分配...</p>
+                        <p className="text-2xl font-medium animate-pulse">等待任务分配...</p>
                         {blockingTask ? (
-                            <div className="mt-2 bg-[var(--color-card)] border border-[var(--color-border-theme)] p-3 rounded-lg inline-flex items-center gap-3 text-sm">
-                                <span className="opacity-80">等待:</span>
-                                <span className="font-bold text-[var(--color-main)]">{blockingTask.step.instruction}</span>
-                                <span className="text-xs bg-black/5 px-1.5 py-0.5 rounded">{Math.round(blockingTask.step.duration/60)}m</span>
+                            <div className="mt-4 bg-[var(--color-card)] border border-[var(--color-border-theme)] p-4 rounded-xl inline-flex flex-col items-center gap-2 text-sm shadow-sm animate-in zoom-in-95">
+                                <div className="flex items-center gap-2">
+                                    <span className="opacity-80">等待:</span>
+                                    <span className="font-bold text-[var(--color-main)]">{blockingTask.step.instruction}</span>
+                                    <span className="text-xs bg-black/5 px-2 py-0.5 rounded font-mono font-bold">
+                                        {/* Real-time countdown of blocking task */}
+                                        {blockingTask.status === 'active' 
+                                            ? Math.max(0, Math.ceil(blockingTask.step.duration - (elapsedSeconds - (blockingTask.actualStartTime || 0)))) + 's'
+                                            : Math.round(blockingTask.step.duration/60) + 'm'
+                                        }
+                                    </span>
+                                </div>
                                 {onForceStart && nextTask && (
                                     <button 
                                         onClick={() => onForceStart(nextTask.runtimeId)}
-                                        className="ml-2 px-3 py-1 bg-[var(--color-accent)] text-white rounded text-xs font-bold hover:opacity-90 transition-opacity"
+                                        className="w-full px-4 py-2 bg-[var(--color-accent)] text-white rounded-lg text-sm font-bold hover:opacity-90 transition-opacity shadow-sm flex items-center justify-center gap-2"
                                     >
                                         立即开始
+                                        <ChevronRight className="h-4 w-4" />
                                     </button>
                                 )}
                             </div>
                         ) : (
-                            <div className="mt-2 flex flex-col items-center gap-2">
+                            <div className="mt-4 flex flex-col items-center gap-3 animate-in fade-in slide-in-from-bottom-2">
                                 <p className="text-base opacity-60">正在等待时间点或调度...</p>
                                 {onForceStart && nextTask && (
                                     <button 
                                         onClick={() => onForceStart(nextTask.runtimeId)}
-                                        className="px-4 py-1.5 bg-[var(--color-accent)] text-white rounded-full text-xs font-bold hover:opacity-90 transition-opacity shadow-md"
+                                        className="px-6 py-2 bg-[var(--color-accent)] text-white rounded-full text-sm font-bold hover:opacity-90 transition-opacity shadow-lg flex items-center gap-2"
                                     >
                                         跳过等待，立即开始
+                                        <ChevronRight className="h-4 w-4" />
                                     </button>
                                 )}
                             </div>
