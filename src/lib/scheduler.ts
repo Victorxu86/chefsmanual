@@ -37,8 +37,10 @@ interface ResourcePool {
 // 资源时间轴 (记录占用情况)
 class ResourceTimeline {
   private occupied: { start: number, end: number, load: number }[] = []
+  public totalBookedTime: number = 0
 
   isAvailable(start: number, end: number, capacity: number, required: number): boolean {
+    // ... (keep existing logic)
     const overlaps = this.occupied.filter(interval => 
       !(interval.end <= start || interval.start >= end)
     )
@@ -75,6 +77,7 @@ class ResourceTimeline {
 
   book(start: number, end: number, load: number) {
     this.occupied.push({ start, end, load })
+    this.totalBookedTime += (end - start) * load
   }
 }
 
@@ -189,7 +192,7 @@ export class KitchenScheduler {
           const proposedStart = proposedEnd - step.duration
           
           const requirements = this.identifyRequirements(step)
-          const allocation = this.tryAllocate(requirements, proposedStart, proposedEnd)
+          const allocation = this.tryAllocate(step, requirements, proposedStart, proposedEnd)
 
           if (allocation) {
             allocation.forEach(alloc => {
@@ -236,25 +239,77 @@ export class KitchenScheduler {
     return reqs
   }
 
-  private tryAllocate(reqs: { type: string, load: number }[], start: number, end: number): { type: string, index: number, load: number }[] | null {
+  private tryAllocate(step: SchedulerStep, reqs: { type: string, load: number }[], start: number, end: number): { type: string, index: number, load: number }[] | null {
     const allocation: { type: string, index: number, load: number }[] = []
     for (const req of reqs) {
       const timelines = this.resourceStates[req.type]
       if (!timelines) continue 
-      let foundIndex = -1
-      for (let i = 0; i < timelines.length; i++) {
-        if (timelines[i].isAvailable(start, end, 1.0, req.load)) {
-          foundIndex = i
-          break
-        }
-      }
-      if (foundIndex !== -1) {
-        allocation.push({ type: req.type, index: foundIndex, load: req.load })
+      
+      // === 资源分配策略优化 (Load Balancing + Role Bias) ===
+      if (req.type === 'chef' && timelines.length > 1) {
+         // 找出所有当前空闲的厨师
+         const candidates: number[] = []
+         for (let i = 0; i < timelines.length; i++) {
+           if (timelines[i].isAvailable(start, end, 1.0, req.load)) {
+             candidates.push(i)
+           }
+         }
+
+         if (candidates.length === 0) return null
+
+         // 评分选择最佳厨师
+         // 分数越低越好
+         // 基础分 = 已工作时长 (Balance Load)
+         // 惩罚分 = 角色不匹配 (Role Bias)
+         
+         const bestIndex = candidates.sort((a, b) => {
+            const scoreA = this.calculateChefScore(a, step, timelines[a])
+            const scoreB = this.calculateChefScore(b, step, timelines[b])
+            return scoreA - scoreB
+         })[0]
+
+         allocation.push({ type: req.type, index: bestIndex, load: req.load })
+
       } else {
-        return null 
+        // 其他资源 (Stove, Oven, etc.) 依然采用贪心算法，优先填满第一个
+        let foundIndex = -1
+        for (let i = 0; i < timelines.length; i++) {
+            if (timelines[i].isAvailable(start, end, 1.0, req.load)) {
+            foundIndex = i
+            break
+            }
+        }
+        if (foundIndex !== -1) {
+            allocation.push({ type: req.type, index: foundIndex, load: req.load })
+        } else {
+            return null 
+        }
       }
     }
     return allocation
+  }
+
+  private calculateChefScore(index: number, step: SchedulerStep, timeline: ResourceTimeline): number {
+      let score = timeline.totalBookedTime 
+
+      const isMainChef = index === 0
+      const isPrep = step.type === 'prep' || ['切', '洗', '腌', '拌', 'peel', 'chop', 'wash'].some(k => step.instruction.toLowerCase().includes(k))
+      const isCook = step.type === 'cook' || ['炒', '煎', '炸', '煮', 'stir-fry', 'pan-fry'].some(k => step.instruction.toLowerCase().includes(k))
+
+      // 角色偏好惩罚 (Penalty cost)
+      // 假设平均一个步骤 300-600秒。惩罚值应足够大以体现偏好，但不能大到完全忽略负载均衡。
+      // 设定惩罚值为 600 (相当于增加10分钟的工作负载感)
+
+      if (isMainChef) {
+          if (isPrep) score += 1200 // 主厨不喜欢做备菜 (Strong penalty)
+          // if (isCook) score += 0  // 主厨喜欢做菜
+      } else {
+          // 帮厨
+          if (isCook) score += 1200 // 帮厨不擅长核心烹饪 (Strong penalty)
+          // if (isPrep) score += 0  // 帮厨喜欢备菜
+      }
+
+      return score
   }
 
   private isStoveRequired(step: SchedulerStep): boolean {
