@@ -222,8 +222,15 @@ export class KitchenScheduler {
           const allocation = this.tryAllocate(step, requirements, proposedStart, proposedEnd)
 
           if (allocation) {
+            // Buffer Logic: 增加任务间的缓冲时间
+            // 如果不是连续的同类型任务，我们在物理占用上可以稍微“膨胀”一点
+            // 这里简单实现：所有任务的 endTime 实际上多占用了 60秒 (Buffer)
+            // 但 display 的 block 还是原始时间。
+            // 在 book 时，我们传入一个 bufferedEnd = proposedEnd + 60
+            
             allocation.forEach(alloc => {
-              this.resourceStates[alloc.type][alloc.index].book(proposedStart, proposedEnd, alloc.load, step.temp)
+              const bufferSeconds = 60 // 1 minute buffer
+              this.resourceStates[alloc.type][alloc.index].book(proposedStart, proposedEnd + bufferSeconds, alloc.load, step.temp)
               
               outputBlocks.push({
                 step,
