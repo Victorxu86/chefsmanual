@@ -144,68 +144,47 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
       {/* Main */}
       <div className="flex-1 flex flex-col gap-6">
         
-        {/* Step 2: Chef Configuration */}
+        {/* Step 2: Chef Configuration - Optimized Horizontal Layout */}
         {selectedIds.size > 0 && (
-          <div className="bg-[var(--color-card)] border border-[var(--color-border-theme)] rounded-[var(--radius-theme)] p-6 animate-in fade-in slide-in-from-top-4 duration-500">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h2 className="font-bold text-[var(--color-main)] flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  第二步：配置厨师团队
-                </h2>
-                <p className="text-sm text-[var(--color-muted)]">
-                  设定参与烹饪的人员。添加帮厨可解锁协作模式，显著提升效率。
-                </p>
-              </div>
-              <div className="text-right">
-                <span className="text-xs font-bold bg-[var(--color-accent-light)] text-[var(--color-accent)] px-2 py-1 rounded-full">
-                  当前团队: {resources.chef} 人
-                </span>
-              </div>
-            </div>
-            
-            <div className="flex flex-col gap-3 max-w-md">
-                {/* 主厨 - 始终存在 */}
-                <div className="flex items-center gap-4 bg-[var(--color-page)] p-3 rounded-lg border border-[var(--color-border-theme)] shadow-sm">
-                    <div className="w-10 h-10 rounded-full bg-[var(--color-accent-light)] flex items-center justify-center text-[var(--color-accent)] border border-[var(--color-accent)]/20">
-                        <ChefHat className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1">
-                        <div className="text-sm font-bold text-[var(--color-main)]">主厨 (您)</div>
-                        <div className="text-xs text-[var(--color-muted)]">负责核心烹饪步骤</div>
-                    </div>
-                    <div className="text-[10px] font-bold bg-[var(--color-accent)] text-white px-2 py-1 rounded">TEAM LEADER</div>
+          <div className="bg-[var(--color-card)] border border-[var(--color-border-theme)] rounded-[var(--radius-theme)] p-4 animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 text-[var(--color-main)] font-bold min-w-fit">
+                    <User className="h-5 w-5" />
+                    <span>厨师团队</span>
                 </div>
-
-                {/* 帮厨列表 */}
-                {Array.from({ length: resources.chef - 1 }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-4 bg-[var(--color-page)] p-3 rounded-lg border border-[var(--color-border-theme)] shadow-sm animate-in slide-in-from-left-2 fade-in duration-300">
-                         <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 border border-orange-200">
-                            <User className="h-5 w-5" />
-                        </div>
-                        <div className="flex-1">
-                            <div className="text-sm font-bold text-[var(--color-main)]">帮厨 #{i + 1}</div>
-                            <div className="text-xs text-[var(--color-muted)]">协助备菜、清洗等工作</div>
-                        </div>
-                        <button 
-                            onClick={() => setResources(p => ({...p, chef: p.chef - 1}))}
-                            className="w-8 h-8 flex items-center justify-center text-[var(--color-muted)] hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                        >
-                            <X className="h-4 w-4" />
-                        </button>
+                
+                <div className="flex items-center gap-3 flex-1 overflow-x-auto pb-1 no-scrollbar">
+                    {/* 主厨 - 始终存在 */}
+                    <div className="flex items-center gap-2 bg-[var(--color-accent-light)]/20 px-3 py-1.5 rounded-full border border-[var(--color-accent)]/30 flex-shrink-0">
+                         <ChefHat className="h-4 w-4 text-[var(--color-accent)]" />
+                         <span className="text-sm font-bold text-[var(--color-main)]">主厨 (您)</span>
                     </div>
-                ))}
 
-                {/* 添加按钮 */}
-                {resources.chef < 4 && (
-                     <button 
-                        onClick={() => setResources(p => ({...p, chef: p.chef + 1}))}
-                        className="w-full py-3 border-2 border-dashed border-[var(--color-border-theme)] rounded-lg text-[var(--color-muted)] text-sm font-bold hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent-light)]/10 transition-all flex items-center justify-center gap-2 group"
-                    >
-                        <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" /> 
-                        添加帮厨人员
-                    </button>
-                )}
+                    {/* 帮厨列表 */}
+                    {Array.from({ length: resources.chef - 1 }).map((_, i) => (
+                        <div key={i} className="flex items-center gap-2 bg-[var(--color-page)] px-3 py-1.5 rounded-full border border-[var(--color-border-theme)] shadow-sm flex-shrink-0 animate-in zoom-in-90 duration-200">
+                             <User className="h-3 w-3 text-orange-500" />
+                             <span className="text-sm font-medium text-[var(--color-main)]">帮厨 #{i + 1}</span>
+                             <button 
+                                onClick={() => setResources(p => ({...p, chef: p.chef - 1}))}
+                                className="ml-1 hover:text-red-500 transition-colors"
+                            >
+                                <X className="h-3 w-3" />
+                            </button>
+                        </div>
+                    ))}
+
+                    {/* 添加按钮 - 紧凑型 */}
+                    {resources.chef < 4 && (
+                        <button 
+                            onClick={() => setResources(p => ({...p, chef: p.chef + 1}))}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-dashed border-[var(--color-border-theme)] text-[var(--color-muted)] text-xs font-bold hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent-light)]/10 transition-all flex-shrink-0"
+                        >
+                            <Plus className="h-3 w-3" /> 
+                            添加帮厨
+                        </button>
+                    )}
+                </div>
             </div>
           </div>
         )}
@@ -274,13 +253,13 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
           </div>
         )}
 
-        {/* Bottom: Gantt Chart (Step 4) */}
-        <div className="flex-1 bg-[var(--color-card)] border border-[var(--color-border-theme)] rounded-[var(--radius-theme)] overflow-hidden flex flex-col relative">
-          <div className="h-14 border-b border-[var(--color-border-theme)] flex items-center px-4 justify-between bg-[var(--color-card)] z-10">
-            <h2 className="font-bold text-[var(--color-main)]">智能调度预览</h2>
+        {/* Bottom: Gantt Chart (Expanded) */}
+        <div className="flex-1 bg-[var(--color-card)] border border-[var(--color-border-theme)] rounded-[var(--radius-theme)] overflow-hidden flex flex-col relative min-h-0 shadow-sm hover:shadow-md transition-shadow">
+          <div className="h-14 border-b border-[var(--color-border-theme)] flex items-center px-6 justify-between bg-[var(--color-card)] z-10 flex-shrink-0">
+            <h2 className="font-bold text-[var(--color-main)] text-lg">智能调度预览</h2>
             <button 
               disabled={selectedIds.size === 0}
-              className="px-6 py-2 bg-[var(--color-accent)] text-white rounded-full text-sm font-bold flex items-center gap-2 hover:opacity-90 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105"
+              className="px-6 py-2 bg-[var(--color-accent)] text-white rounded-full text-sm font-bold flex items-center gap-2 hover:bg-[var(--color-accent-dark)] shadow-lg shadow-[var(--color-accent)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95"
             >
               <Play className="h-4 w-4" /> 开始烹饪导航
             </button>
