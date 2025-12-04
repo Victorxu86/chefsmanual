@@ -18,8 +18,8 @@ const AttentionEnum = z.enum(ATTENTION_LEVELS.map(a => a.value) as [string, ...s
 const IngredientCategoryEnum = z.enum(INGREDIENT_CATEGORIES.map(c => c.value) as [string, ...string[]]);
 const RecipeCategoryEnum = z.enum(RECIPE_CATEGORIES.map(c => c.value) as [string, ...string[]]);
 
-// 辅助函数：将空字符串转换为 undefined
-const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val);
+// 辅助函数：将空字符串或 null 转换为 undefined
+const emptyToUndefined = (val: unknown) => (val === "" || val === null ? undefined : val);
 
 // 辅助函数：安全地将值转换为数字，处理空值和NaN
 const safeNumber = (val: unknown) => {
@@ -32,8 +32,8 @@ const safeNumber = (val: unknown) => {
 export const ingredientSchema = z.object({
   id: z.string().optional(), // 用于编辑模式
   name: z.string().min(1, "食材名称必填"),
-  amount: z.string().optional(),
-  unit: z.string().optional(),
+  amount: z.preprocess(emptyToUndefined, z.string().optional()),
+  unit: z.preprocess(emptyToUndefined, z.string().optional()),
   category: z.preprocess(emptyToUndefined, IngredientCategoryEnum.optional().default("other")),
   prep_note: z.string().optional(), // "切丝", "去皮"
   display_order: z.number().default(0),
@@ -45,7 +45,7 @@ export const stepSchema = z.object({
   step_order: z.number(),
   
   instruction: z.string().min(1, "步骤内容必填"),
-  description: z.string().optional(),
+  description: z.preprocess(emptyToUndefined, z.string().optional()),
   
   // 核心调度数据
   duration: z.preprocess(safeNumber, z.number().min(0, "时长不能为负").default(0)), // 秒
@@ -73,8 +73,8 @@ export const stepSchema = z.object({
 // 菜谱 Schema
 export const recipeSchema = z.object({
   title: z.string().min(1, "菜谱名称必填"),
-  description: z.string().optional(),
-  cover_image: z.string().optional(),
+  description: z.preprocess(emptyToUndefined, z.string().optional()),
+  cover_image: z.preprocess(emptyToUndefined, z.string().optional()),
   
   cuisine: z.preprocess(emptyToUndefined, CuisineEnum.optional()),
   category: z.preprocess(emptyToUndefined, RecipeCategoryEnum.default("main")), // 新增：菜品类别
