@@ -61,6 +61,7 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
     const selectedRecipes = recipes.filter(r => selectedIds.has(r.id))
     const schedulerRecipes = selectedRecipes.map(r => ({
       id: r.id,
+      category: r.category, // Pass category to scheduler
       steps: r.recipe_steps
     }))
 
@@ -121,7 +122,10 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-[var(--color-main)] line-clamp-1">{r.title}</h4>
-                  <span className="text-[10px] text-[var(--color-muted)]">{r.total_time_minutes}m</span>
+                  <span className="text-[10px] text-[var(--color-muted)]">
+                    {r.category ? <span className="uppercase bg-black/10 px-1 rounded mr-1">{r.category}</span> : null}
+                    {r.total_time_minutes}m
+                  </span>
                 </div>
               </div>
               {selectedIds.has(r.id) && <Check className="h-4 w-4 text-[var(--color-accent)]" />}
@@ -170,6 +174,16 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
                 onChange={(n: number) => setResources(p => ({...p, board: n}))} 
                 max={2} 
                 color="green" 
+              />
+
+              {/* 新增：厨师数量配置 (Unlock Multi-Chef Mode) */}
+              <ResourceControl 
+                label="厨师人数" 
+                icon={<User className="h-5 w-5" />} 
+                value={resources.chef} 
+                onChange={(n: number) => setResources(p => ({...p, chef: n}))} 
+                max={4} 
+                color="red" // 使用红色区分人力资源
               />
 
               {needs.oven && (
@@ -256,6 +270,7 @@ function ResourceControl({ label, icon, value, onChange, max, color }: any) {
     blue: 'bg-blue-100 text-blue-600 border-blue-300',
     green: 'bg-green-100 text-green-600 border-green-300',
     purple: 'bg-purple-100 text-purple-600 border-purple-300',
+    red: 'bg-red-100 text-red-600 border-red-300', // 新增红色样式
   }
   
   const activeColorClasses: any = {
@@ -263,6 +278,7 @@ function ResourceControl({ label, icon, value, onChange, max, color }: any) {
     blue: 'bg-blue-500 hover:bg-blue-600',
     green: 'bg-green-500 hover:bg-green-600',
     purple: 'bg-purple-500 hover:bg-purple-600',
+    red: 'bg-red-500 hover:bg-red-600',
   }
 
   return (
@@ -274,8 +290,8 @@ function ResourceControl({ label, icon, value, onChange, max, color }: any) {
         <label className="text-xs font-bold text-[var(--color-muted)] block mb-1">{label}</label>
         <div className="flex gap-2">
           {Array.from({length: max + 1}).map((_, i) => {
-            const n = i; // 0 to max
-            if ((label === '可用炉头' || label === '砧板数量') && n === 0) return null;
+            const n = i; 
+            if ((label === '可用炉头' || label === '砧板数量' || label === '厨师人数') && n === 0) return null;
             
             const isActive = value === n
             
@@ -310,7 +326,7 @@ function Lane({ title, blocks, pxPerSec }: { title: string, blocks: ScheduledBlo
           </span>
         )}
       </div>
-      {/* Empty State for Lane */}
+      
       {blocks.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center opacity-10">
           <div className="h-1 w-full border-t border-dashed border-[var(--color-muted)]" />
