@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { KitchenScheduler, ScheduledBlock } from "@/lib/scheduler"
-import { ChefHat, Play, Check, Settings, Flame, Mic, Box, Clock, Square, Soup, User } from "lucide-react"
+import { ChefHat, Play, Check, Settings, Flame, Mic, Box, Clock, Square, Soup, User, X, Plus } from "lucide-react"
 
 export function SessionClient({ recipes }: { recipes: any[] }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -78,7 +78,14 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
   const lanes = useMemo(() => {
     const list = []
     // Chef
-    for (let i = 0; i < resources.chef; i++) list.push({ id: `chef_${i+1}`, title: `👨‍🍳 厨师 #${i+1}`, icon: User })
+    for (let i = 0; i < resources.chef; i++) {
+      const isMainChef = i === 0
+      list.push({ 
+        id: `chef_${i+1}`, 
+        title: isMainChef ? `👨‍🍳 主厨 (您)` : `🔪 帮厨 #${i}`, 
+        icon: User 
+      })
+    }
     
     // Stove
     for (let i = 0; i < resources.stove; i++) list.push({ id: `stove_${i+1}`, title: `🔥 炉头 #${i+1}`, icon: Flame })
@@ -144,23 +151,61 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
               <div>
                 <h2 className="font-bold text-[var(--color-main)] flex items-center gap-2">
                   <User className="h-5 w-5" />
-                  第二步：配置厨师人数
+                  第二步：配置厨师团队
                 </h2>
                 <p className="text-sm text-[var(--color-muted)]">
-                  有多少人参与烹饪？多人协作可显著缩短总时长。
+                  设定参与烹饪的人员。添加帮厨可解锁协作模式，显著提升效率。
                 </p>
+              </div>
+              <div className="text-right">
+                <span className="text-xs font-bold bg-[var(--color-accent-light)] text-[var(--color-accent)] px-2 py-1 rounded-full">
+                  当前团队: {resources.chef} 人
+                </span>
               </div>
             </div>
             
-            <div className="flex flex-wrap gap-8">
-              <ResourceControl 
-                label="厨师人数" 
-                icon={<User className="h-5 w-5" />} 
-                value={resources.chef} 
-                onChange={(n: number) => setResources(p => ({...p, chef: n}))} 
-                max={4} 
-                color="red" 
-              />
+            <div className="flex flex-col gap-3 max-w-md">
+                {/* 主厨 - 始终存在 */}
+                <div className="flex items-center gap-4 bg-[var(--color-page)] p-3 rounded-lg border border-[var(--color-border-theme)] shadow-sm">
+                    <div className="w-10 h-10 rounded-full bg-[var(--color-accent-light)] flex items-center justify-center text-[var(--color-accent)] border border-[var(--color-accent)]/20">
+                        <ChefHat className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                        <div className="text-sm font-bold text-[var(--color-main)]">主厨 (您)</div>
+                        <div className="text-xs text-[var(--color-muted)]">负责核心烹饪步骤</div>
+                    </div>
+                    <div className="text-[10px] font-bold bg-[var(--color-accent)] text-white px-2 py-1 rounded">TEAM LEADER</div>
+                </div>
+
+                {/* 帮厨列表 */}
+                {Array.from({ length: resources.chef - 1 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-4 bg-[var(--color-page)] p-3 rounded-lg border border-[var(--color-border-theme)] shadow-sm animate-in slide-in-from-left-2 fade-in duration-300">
+                         <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 border border-orange-200">
+                            <User className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1">
+                            <div className="text-sm font-bold text-[var(--color-main)]">帮厨 #{i + 1}</div>
+                            <div className="text-xs text-[var(--color-muted)]">协助备菜、清洗等工作</div>
+                        </div>
+                        <button 
+                            onClick={() => setResources(p => ({...p, chef: p.chef - 1}))}
+                            className="w-8 h-8 flex items-center justify-center text-[var(--color-muted)] hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
+                ))}
+
+                {/* 添加按钮 */}
+                {resources.chef < 4 && (
+                     <button 
+                        onClick={() => setResources(p => ({...p, chef: p.chef + 1}))}
+                        className="w-full py-3 border-2 border-dashed border-[var(--color-border-theme)] rounded-lg text-[var(--color-muted)] text-sm font-bold hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent-light)]/10 transition-all flex items-center justify-center gap-2 group"
+                    >
+                        <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" /> 
+                        添加帮厨人员
+                    </button>
+                )}
             </div>
           </div>
         )}
