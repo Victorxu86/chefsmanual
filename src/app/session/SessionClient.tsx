@@ -1,11 +1,13 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { KitchenScheduler, ScheduledBlock } from "@/lib/scheduler"
 import { ChefHat, Play, Check, Settings, Flame, Mic, Box, Clock, Square, Soup, User, X, Plus, BookOpen, AlignLeft } from "lucide-react"
 import { RECIPE_CATEGORIES } from "@/lib/constants"
+import { useRouter } from "next/navigation"
 
 export function SessionClient({ recipes }: { recipes: any[] }) {
+  const router = useRouter()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   
   const [resources, setResources] = useState({
@@ -62,6 +64,7 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
     const selectedRecipes = recipes.filter(r => selectedIds.has(r.id))
     const schedulerRecipes = selectedRecipes.map(r => ({
       id: r.id,
+      title: r.title, // Add title for display
       category: r.category, // Pass category to scheduler
       steps: r.recipe_steps
     }))
@@ -69,6 +72,27 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
     const scheduler = new KitchenScheduler(resources)
     return scheduler.schedule(schedulerRecipes)
   }, [selectedIds, recipes, resources])
+
+  const handleStartCooking = () => {
+    if (timeline.length === 0) return
+
+    // 1. Store session data
+    const sessionData = {
+      timeline,
+      resources,
+      recipes: recipes.filter(r => selectedIds.has(r.id)).map(r => ({
+        id: r.id,
+        title: r.title,
+        cover_image: r.cover_image
+      })),
+      startedAt: Date.now()
+    }
+    
+    localStorage.setItem('cooking_session', JSON.stringify(sessionData))
+
+    // 2. Navigate to Live page
+    router.push('/session/live')
+  }
 
   const totalDuration = timeline.length > 0 
     ? Math.max(...timeline.map(b => b.endTime)) 
@@ -270,6 +294,7 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
             </h2>
             <button 
               disabled={selectedIds.size === 0}
+              onClick={handleStartCooking}
               className="px-6 py-2 bg-[var(--color-accent)] text-white rounded-full text-sm font-bold flex items-center gap-2 hover:bg-[var(--color-accent)] shadow-lg shadow-[var(--color-accent)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95"
             >
               <Play className="h-4 w-4" /> 开始烹饪导航
