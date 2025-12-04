@@ -137,14 +137,42 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
       {/* Main */}
       <div className="flex-1 flex flex-col gap-6">
         
-        {/* Top: Resource Configuration (Step 2) */}
+        {/* Step 2: Chef Configuration */}
         {selectedIds.size > 0 && (
           <div className="bg-[var(--color-card)] border border-[var(--color-border-theme)] rounded-[var(--radius-theme)] p-6 animate-in fade-in slide-in-from-top-4 duration-500">
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h2 className="font-bold text-[var(--color-main)] flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  第二步：配置厨师人数
+                </h2>
+                <p className="text-sm text-[var(--color-muted)]">
+                  有多少人参与烹饪？多人协作可显著缩短总时长。
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex flex-wrap gap-8">
+              <ResourceControl 
+                label="厨师人数" 
+                icon={<User className="h-5 w-5" />} 
+                value={resources.chef} 
+                onChange={(n: number) => setResources(p => ({...p, chef: n}))} 
+                max={4} 
+                color="red" 
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Other Resources */}
+        {selectedIds.size > 0 && (
+          <div className="bg-[var(--color-card)] border border-[var(--color-border-theme)] rounded-[var(--radius-theme)] p-6 animate-in fade-in slide-in-from-top-4 duration-500 delay-75">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h2 className="font-bold text-[var(--color-main)] flex items-center gap-2">
                   <Settings className="h-5 w-5" />
-                  第二步：确认厨房资源
+                  第三步：确认厨房资源
                 </h2>
                 <p className="text-sm text-[var(--color-muted)]">
                   算法已分析您的菜谱，建议准备以下工具。您可以根据实际情况调整。
@@ -176,16 +204,6 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
                 color="green" 
               />
 
-              {/* 新增：厨师数量配置 (Unlock Multi-Chef Mode) */}
-              <ResourceControl 
-                label="厨师人数" 
-                icon={<User className="h-5 w-5" />} 
-                value={resources.chef} 
-                onChange={(n: number) => setResources(p => ({...p, chef: n}))} 
-                max={4} 
-                color="red" // 使用红色区分人力资源
-              />
-
               {needs.oven && (
                 <ResourceControl 
                   label="烤箱/蒸箱" 
@@ -211,10 +229,10 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
           </div>
         )}
 
-        {/* Bottom: Gantt Chart (Step 3) */}
+        {/* Bottom: Gantt Chart (Step 4) */}
         <div className="flex-1 bg-[var(--color-card)] border border-[var(--color-border-theme)] rounded-[var(--radius-theme)] overflow-hidden flex flex-col relative">
           <div className="h-14 border-b border-[var(--color-border-theme)] flex items-center px-4 justify-between bg-[var(--color-card)] z-10">
-            <h2 className="font-bold text-[var(--color-main)]">第三步：智能调度预览</h2>
+            <h2 className="font-bold text-[var(--color-main)]">智能调度预览</h2>
             <button 
               disabled={selectedIds.size === 0}
               className="px-6 py-2 bg-[var(--color-accent)] text-white rounded-full text-sm font-bold flex items-center gap-2 hover:opacity-90 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105"

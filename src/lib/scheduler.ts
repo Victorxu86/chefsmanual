@@ -1,38 +1,42 @@
 import { ACTIONS, ActionKey } from "./constants"
 
+// === 核心数据结构 ===
+
 export interface SchedulerStep {
   id: string
   recipeId: string
   recipeColor: string 
   stepOrder: number
   instruction: string
-  duration: number 
+  duration: number // 秒
   type: "prep" | "cook" | "wait" | "serve"
-  isActive: boolean 
-  equipment?: string 
+  isActive: boolean // 是否占用人手
+  equipment?: string // 占用特定设备
   isInterruptible: boolean 
+  // 原始动作Key，用于精准推断
   _actionKey?: string
 }
 
 export interface ScheduledBlock {
   step: SchedulerStep
-  startTime: number 
+  startTime: number // 相对开饭时间的秒数 (通常为负数)
   endTime: number
   lane: "chef" | "stove" | "oven" | "board" | "bowl" | "other"
   resourceId: string 
 }
 
+// 资源池定义
 interface ResourcePool {
   chef: number 
   stove: number 
   oven: number
-  board: number
-  bowl: number
+  board: number // 砧板
+  bowl: number  // 料理碗
 }
 
+// 资源时间轴 (记录占用情况)
 class ResourceTimeline {
-  // 增加 recipeId 用于连续性判断
-  private occupied: { start: number, end: number, load: number, recipeId?: string }[] = []
+  private occupied: { start: number, end: number, load: number }[] = []
 
   isAvailable(start: number, end: number, capacity: number, required: number): boolean {
     const overlaps = this.occupied.filter(interval => 
@@ -69,14 +73,8 @@ class ResourceTimeline {
     return true
   }
 
-  book(start: number, end: number, load: number, recipeId?: string) {
-    this.occupied.push({ start, end, load, recipeId })
-  }
-
-  // 检查紧接着是否有同一道菜的任务 (用于倒序排程时的连续性判定)
-  hasTaskAfter(time: number, recipeId: string): boolean {
-    // 检查范围：紧接着的 5 分钟内
-    return this.occupied.some(o => o.start >= time && o.start <= time + 300 && o.recipeId === recipeId)
+  book(start: number, end: number, load: number) {
+    this.occupied.push({ start, end, load })
   }
 }
 
@@ -109,46 +107,73 @@ export class KitchenScheduler {
     this.initResourceStates()
     const outputBlocks: ScheduledBlock[] = []
 
+    // 1. 预处理
     const allTaskChains = recipes.map((recipe, idx) => {
-      const color = `hsl(${idx * 60}, 70%, 50%)` 
-      return recipe.steps.map((s: any) => {
-        let isActive = s.is_active
-        const actionEntry = Object.values(ACTIONS).find((a: any) => s.instruction.startsWith(a.label))
-        if (actionEntry && actionEntry.forcePassive !== undefined) {
-          isActive = !actionEntry.forcePassive
-        }
+      const color = `hsl(${idx * 60}, 70%, 85%)` 
+      const category = recipe.category || 'main'
+      
+      return {
+        recipeId: recipe.id,
+        category,
+        steps: recipe.steps.map((s: any) => {
+          let isActive = s.is_active
+          const actionEntry = Object.values(ACTIONS).find((a: any) => s.instruction.startsWith(a.label))
+          if (actionEntry && actionEntry.forcePassive !== undefined) {
+            isActive = !actionEntry.forcePassive
+          }
 
-        return {
-          id: s.id || Math.random().toString(),
-          recipeId: recipe.id,
-          recipeColor: color,
-          stepOrder: s.step_order,
-          instruction: s.instruction,
-          duration: s.duration_seconds,
-          type: s.step_type,
-          isActive: isActive,
-          equipment: s.equipment,
-          isInterruptible: s.is_interruptible,
-          _actionKey: (actionEntry as any)?.id
-        } as SchedulerStep
-      }).sort((a: any, b: any) => a.stepOrder - b.stepOrder)
+          return {
+            id: s.id || Math.random().toString(),
+            recipeId: recipe.id,
+            recipeColor: color,
+            stepOrder: s.step_order,
+            instruction: s.instruction,
+            duration: s.duration_seconds,
+            type: s.step_type,
+            isActive: isActive,
+            equipment: s.equipment,
+            isInterruptible: s.is_interruptible,
+            _actionKey: (actionEntry as any)?.id
+          } as SchedulerStep
+        }).sort((a: any, b: any) => a.stepOrder - b.stepOrder)
+      }
     })
 
-    const sortedChains = allTaskChains.sort((chainA, chainB) => {
-      const durationA = chainA.reduce((sum: number, s: any) => sum + s.duration, 0)
-      const durationB = chainB.reduce((sum: number, s: any) => sum + s.duration, 0)
+    // 排序策略：先排对齐时间要求最严格的 (main)，再排灵活的 (cold, soup)
+    // 优先级: Main > Staple > Soup > Cold > Dessert
+    const priorityMap: Record<string, number> = {
+      'main': 5,
+      'staple': 4,
+      'soup': 3,
+      'cold': 2,
+      'dessert': 1,
+      'drink': 1
+    }
+
+    const sortedChains = allTaskChains.sort((a, b) => {
+      const pA = priorityMap[a.category as string] || 3
+      const pB = priorityMap[b.category as string] || 3
+      if (pA !== pB) return pB - pA // 优先级高的先排
+      
+      // 同优先级，按总时长降序
+      const durationA = a.steps.reduce((sum: number, s: any) => sum + s.duration, 0)
+      const durationB = b.steps.reduce((sum: number, s: any) => sum + s.duration, 0)
       return durationB - durationA
     })
 
     for (const chain of sortedChains) {
-      // 简单处理：没有 category 信息时默认为 0
-      let lastStepEndTime = 0 
-      // (注意：这里的 schedule 函数参数里没有 category，如果需要 category 调度，需要前端传入带 category 的对象)
-      // 假设前端传入的 recipes 已经包含了 category 属性 (V4 逻辑)
-      // 为了兼容性，这里先简化，如果需要 category 逻辑，请确保 recipes 数组里的对象有 category
+      // === 智能设定目标结束时间 ===
+      let lastStepEndTime = 0
+      
+      switch (chain.category) {
+        case 'cold': lastStepEndTime = -1800; break; // 提前30分钟做完
+        case 'soup': lastStepEndTime = -600; break;  // 提前10分钟做完
+        case 'dessert': lastStepEndTime = -1800; break; // 改为饭前30分钟做完
+        default: lastStepEndTime = 0; break; // 准点
+      }
 
-      for (let i = chain.length - 1; i >= 0; i--) {
-        const step = chain[i]
+      for (let i = chain.steps.length - 1; i >= 0; i--) {
+        const step = chain.steps[i]
         let proposedEnd = lastStepEndTime
         let placed = false
 
@@ -156,13 +181,11 @@ export class KitchenScheduler {
           const proposedStart = proposedEnd - step.duration
           
           const requirements = this.identifyRequirements(step)
-          // 使用 Best Fit 算法
-          const allocation = this.tryAllocateBestFit(requirements, proposedStart, proposedEnd, step)
+          const allocation = this.tryAllocate(requirements, proposedStart, proposedEnd)
 
           if (allocation) {
             allocation.forEach(alloc => {
-              // Book 时记录 recipeId
-              this.resourceStates[alloc.type][alloc.index].book(proposedStart, proposedEnd, alloc.load, step.recipeId)
+              this.resourceStates[alloc.type][alloc.index].book(proposedStart, proposedEnd, alloc.load)
               
               outputBlocks.push({
                 step,
@@ -194,6 +217,7 @@ export class KitchenScheduler {
     return outputBlocks.sort((a, b) => a.startTime - b.startTime)
   }
 
+  // ... (identifyRequirements, tryAllocate, check helpers 保持不变)
   private identifyRequirements(step: SchedulerStep): { type: string, load: number }[] {
     const reqs: { type: string, load: number }[] = []
     if (step.isActive) reqs.push({ type: 'chef', load: 1.0 })
@@ -204,57 +228,24 @@ export class KitchenScheduler {
     return reqs
   }
 
-  // === 核心升级：最佳适应分配算法 ===
-  private tryAllocateBestFit(reqs: { type: string, load: number }[], start: number, end: number, step: SchedulerStep): { type: string, index: number, load: number }[] | null {
+  private tryAllocate(reqs: { type: string, load: number }[], start: number, end: number): { type: string, index: number, load: number }[] | null {
     const allocation: { type: string, index: number, load: number }[] = []
-
     for (const req of reqs) {
       const timelines = this.resourceStates[req.type]
       if (!timelines) continue 
-
-      // 寻找所有可用的候选资源，并打分
-      const candidates: { index: number, score: number }[] = []
-
+      let foundIndex = -1
       for (let i = 0; i < timelines.length; i++) {
         if (timelines[i].isAvailable(start, end, 1.0, req.load)) {
-          let score = 100 // 基础分
-          
-          // 1. 角色偏好 (Role Preference)
-          // 假设 Chef #1 是 Head Chef (擅长 Cook), Chef #2 是 Sous Chef (擅长 Prep)
-          // 仅当有多人时才启用此策略
-          if (req.type === 'chef' && this.resources.chef > 1) {
-             if (i === 0) { // Head Chef
-                if (step.type === 'cook') score += 50
-                if (step.type === 'serve') score += 30
-                if (step.type === 'prep') score -= 20
-             } else if (i === 1) { // Sous Chef
-                if (step.type === 'prep') score += 50
-                if (step.type === 'wait' || step.type === 'serve') score += 20
-                if (step.type === 'cook') score -= 20
-             }
-          }
-
-          // 2. 连续性粘滞 (Continuity Stickiness)
-          // 检查该资源紧接着（未来）是否有同一个 Recipe 的任务
-          // 因为我们是倒序排，所以 "未来" 的任务其实是已经排好的、时间轴上靠后的任务
-          if (timelines[i].hasTaskAfter(end, step.recipeId)) {
-            score += 80 // 极高的权重：尽量让同一个人做同一道菜的连续步骤
-          }
-
-          candidates.push({ index: i, score })
+          foundIndex = i
+          break
         }
       }
-
-      // 按分数降序排列，选第一个
-      candidates.sort((a, b) => b.score - a.score)
-
-      if (candidates.length > 0) {
-        allocation.push({ type: req.type, index: candidates[0].index, load: req.load })
+      if (foundIndex !== -1) {
+        allocation.push({ type: req.type, index: foundIndex, load: req.load })
       } else {
-        return null // 资源不足
+        return null 
       }
     }
-
     return allocation
   }
 
