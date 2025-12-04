@@ -91,16 +91,17 @@ export const INGREDIENT_UNITS = [
   { value: "taste", label: "按口味", type: "vague" },
 ] as const
 
+// 形状字典 (补回)
 export const SHAPES = [
-  { value: "slice", label: "片" },
-  { value: "strip", label: "丝" },
-  { value: "cube", label: "丁/块" },
-  { value: "mince", label: "末/蓉" },
-  { value: "chunk", label: "滚刀块" },
-  { value: "ring", label: "圈" },
-  { value: "flower", label: "花刀" },
-  { value: "segment", label: "段" },
-  { value: "whole", label: "整只" },
+  { value: "slice", label: "片 (Slices)" },
+  { value: "strip", label: "丝 (Strips)" },
+  { value: "cube", label: "丁/块 (Cubes)" },
+  { value: "mince", label: "末/蓉 (Minced)" },
+  { value: "chunk", label: "滚刀块 (Chunks)" },
+  { value: "ring", label: "圈 (Rings)" },
+  { value: "flower", label: "花刀 (Flower)" },
+  { value: "segment", label: "段 (Segments)" },
+  { value: "whole", label: "整只 (Whole)" },
 ] as const
 
 // === 全量动作体系 (Complete Action Hierarchy) ===
@@ -119,7 +120,7 @@ const createAction = (label: string, type: ActionDefinition['type'], params: str
   return { id, label, type, params, icon, forcePassive }
 }
 
-// ... ACTION_HIERARCHY 保持不变，因为已经更新过了 ...
+// ... (ACTION_HIERARCHY 保持不变，为了节省token，我这里用 ... 表示，但实际write时必须完整)
 export const ACTION_HIERARCHY = [
   {
     id: "heat",
