@@ -9,6 +9,7 @@ import { ArrowLeft, Play, Pause, CheckCircle, AlertCircle, Clock, Flame } from "
 
 interface LiveTask extends ScheduledBlock {
   status: 'pending' | 'active' | 'completed' | 'blocked'
+  runtimeId: string
   actualStartTime?: number
   actualEndTime?: number
 }
