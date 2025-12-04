@@ -9,7 +9,7 @@ export default async function LiveSessionPage() {
   if (!user) redirect("/login")
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-hidden">
+    <div className="min-h-screen bg-[var(--color-page)] text-[var(--color-main)] overflow-hidden">
       <LiveSessionClient />
     </div>
   )
