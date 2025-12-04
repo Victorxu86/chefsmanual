@@ -12,6 +12,7 @@ export interface SchedulerStep {
   type: "prep" | "cook" | "wait" | "serve"
   isActive: boolean // 是否占用人手
   equipment?: string // 占用特定设备
+  temp?: number // 温度需求
   isInterruptible: boolean 
   // 原始动作Key，用于精准推断
   _actionKey?: string
@@ -36,15 +37,21 @@ interface ResourcePool {
 
 // 资源时间轴 (记录占用情况)
 class ResourceTimeline {
-  private occupied: { start: number, end: number, load: number }[] = []
+  private occupied: { start: number, end: number, load: number, temp?: number }[] = []
   public totalBookedTime: number = 0
 
-  isAvailable(start: number, end: number, capacity: number, required: number): boolean {
+  isAvailable(start: number, end: number, capacity: number, required: number, temp?: number): boolean {
     const overlaps = this.occupied.filter(interval => 
       !(interval.end <= start || interval.start >= end)
     )
 
     if (overlaps.length === 0) return true
+
+    // 温度检查：如果当前请求有温度需求，且与任何重叠任务的温度不一致，则不可用
+    if (temp !== undefined) {
+      const conflict = overlaps.some(o => o.temp !== undefined && Math.abs(o.temp - temp) > 5) // 允许 5 度误差
+      if (conflict) return false
+    }
 
     const points = new Set<number>()
     points.add(start)
@@ -74,8 +81,8 @@ class ResourceTimeline {
     return true
   }
 
-  book(start: number, end: number, load: number) {
-    this.occupied.push({ start, end, load })
+  book(start: number, end: number, load: number, temp?: number) {
+    this.occupied.push({ start, end, load, temp })
     this.totalBookedTime += (end - start) * load
   }
 }
@@ -149,6 +156,7 @@ export class KitchenScheduler {
             type: s.step_type,
             isActive: isActive,
             equipment: s.equipment,
+            temp: s.temperature_c, // 从数据源读取温度
             isInterruptible: s.is_interruptible,
             _actionKey: (actionEntry as any)?.id
           } as SchedulerStep
@@ -202,7 +210,7 @@ export class KitchenScheduler {
 
           if (allocation) {
             allocation.forEach(alloc => {
-              this.resourceStates[alloc.type][alloc.index].book(proposedStart, proposedEnd, alloc.load)
+              this.resourceStates[alloc.type][alloc.index].book(proposedStart, proposedEnd, alloc.load, step.temp)
               
               outputBlocks.push({
                 step,
@@ -235,17 +243,17 @@ export class KitchenScheduler {
   }
 
   // ... (identifyRequirements, tryAllocate, check helpers 保持不变)
-  private identifyRequirements(step: SchedulerStep): { type: string, load: number }[] {
-    const reqs: { type: string, load: number }[] = []
+  private identifyRequirements(step: SchedulerStep): { type: string, load: number, temp?: number }[] {
+    const reqs: { type: string, load: number, temp?: number }[] = []
     if (step.isActive) reqs.push({ type: 'chef', load: 1.0 })
     if (this.isStoveRequired(step)) reqs.push({ type: 'stove', load: 1.0 })
-    if (this.isOvenRequired(step)) reqs.push({ type: 'oven', load: 1.0 })
+    if (this.isOvenRequired(step)) reqs.push({ type: 'oven', load: 1.0, temp: step.temp })
     if (this.isBoardRequired(step)) reqs.push({ type: 'board', load: 0.5 })
     if (this.isBowlRequired(step)) reqs.push({ type: 'bowl', load: 1.0 })
     return reqs
   }
 
-  private tryAllocate(step: SchedulerStep, reqs: { type: string, load: number }[], start: number, end: number): { type: string, index: number, load: number }[] | null {
+  private tryAllocate(step: SchedulerStep, reqs: { type: string, load: number, temp?: number }[], start: number, end: number): { type: string, index: number, load: number }[] | null {
     const allocation: { type: string, index: number, load: number }[] = []
     for (const req of reqs) {
       const timelines = this.resourceStates[req.type]
@@ -256,7 +264,7 @@ export class KitchenScheduler {
          // 找出所有当前空闲的厨师
          const candidates: number[] = []
          for (let i = 0; i < timelines.length; i++) {
-           if (timelines[i].isAvailable(start, end, 1.0, req.load)) {
+           if (timelines[i].isAvailable(start, end, 1.0, req.load, req.temp)) {
              candidates.push(i)
            }
          }
@@ -280,7 +288,7 @@ export class KitchenScheduler {
         // 其他资源 (Stove, Oven, etc.) 依然采用贪心算法，优先填满第一个
         let foundIndex = -1
         for (let i = 0; i < timelines.length; i++) {
-            if (timelines[i].isAvailable(start, end, 1.0, req.load)) {
+            if (timelines[i].isAvailable(start, end, 1.0, req.load, req.temp)) {
             foundIndex = i
             break
             }
