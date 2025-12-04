@@ -168,7 +168,7 @@ export class KitchenScheduler {
       switch (chain.category) {
         case 'cold': lastStepEndTime = -1800; break; // 提前30分钟做完
         case 'soup': lastStepEndTime = -600; break;  // 提前10分钟做完
-        case 'dessert': lastStepEndTime = 1800; break; // 饭后30分钟做完
+        case 'dessert': lastStepEndTime = -1800; break; // 改为饭前30分钟做完
         default: lastStepEndTime = 0; break; // 准点
       }
 
