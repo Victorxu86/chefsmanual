@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { ScheduledBlock } from "@/lib/scheduler"
-import { ArrowLeft, Play, Pause, CheckCircle, AlertCircle, Clock, Flame } from "lucide-react"
+import { ArrowLeft, Play, Pause, CheckCircle, AlertCircle, Clock, Flame, User, ChefHat } from "lucide-react"
 
 // === State Models ===
 
