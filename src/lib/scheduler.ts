@@ -137,14 +137,73 @@ export class KitchenScheduler {
     // (由于 Scheduler 目前的架构是基于 Recipe Chain 的倒序排课，完全独立的 Merged Task 比较难插入)
     // (策略：我们将合并后的任务挂载到 "最先需要它的那个菜谱" 上，并增加时长)
 
-    const allTaskChains = recipes.map((recipe, idx) => {
+    const mergedPrepSteps: any[] = []
+    const processedRecipes = recipes.map(r => ({ ...r, steps: [...r.steps] })) // Deep copy steps
+
+    // A. 提取可合并的步骤
+    const prepGroups: Record<string, { recipeIndex: number, stepIndex: number, step: any }[]> = {}
+    
+    processedRecipes.forEach((recipe, rIdx) => {
+      recipe.steps.forEach((step: any, sIdx: number) => {
+        if (step.step_type !== 'prep') return
+        
+        // 识别关键词：切+食材名
+        // 简单实现：提取 "切" 后面的两个字作为 key (e.g., "切葱" -> "切葱")
+        const match = step.instruction.match(/(切|洗|剥|拍)([\u4e00-\u9fa5]{1,2})/)
+        if (match) {
+          const key = match[0] // e.g. "切葱", "切姜"
+          if (!prepGroups[key]) prepGroups[key] = []
+          prepGroups[key].push({ recipeIndex: rIdx, stepIndex: sIdx, step })
+        }
+      })
+    })
+
+    // B. 执行合并
+    Object.entries(prepGroups).forEach(([key, items]) => {
+      if (items.length < 2) return // 只有一个就不合并
+
+      // 1. 计算总时长 (合并后时长 = 总时长 * 0.7，体现规模效应，但至少比单次长)
+      const totalDuration = items.reduce((sum, item) => sum + item.step.duration_seconds, 0)
+      const mergedDuration = Math.ceil(totalDuration * 0.7)
+
+      // 2. 找到 "宿主" (Host)：我们把合并任务挂载到第一道需要这个的菜谱上
+      // 为了不破坏倒序逻辑，我们挂载到 items[0] (通常是第一个菜谱)
+      const hostItem = items[0]
+      const hostRecipe = processedRecipes[hostItem.recipeIndex]
+      const hostStep = hostRecipe.steps[hostItem.stepIndex]
+
+      // 修改宿主步骤：
+      // - 名字改为 "统一备料：切葱 (含 x, y 菜)"
+      // - 时长改为 mergedDuration
+      hostStep.instruction = `[统一] ${key} (共${items.length}道菜)`
+      hostStep.duration_seconds = mergedDuration
+      hostStep.is_active = true // 统一备料通常是 active 的
+
+      // 3. 废除其他步骤 (Guests)
+      // 将它们标记为 "virtual" (虚拟步骤)，时长为0，或者直接从数组中移除
+      // 这里我们选择将它们标记为 duration=0 的虚拟步，并在名字上注明，以便追踪
+      for (let i = 1; i < items.length; i++) {
+        const guestItem = items[i]
+        const guestRecipe = processedRecipes[guestItem.recipeIndex]
+        const guestStep = guestRecipe.steps[guestItem.stepIndex]
+        
+        guestStep.instruction = `(已合并至${hostRecipe.title})`
+        guestStep.duration_seconds = 0 
+        guestStep.is_active = false
+        // 实际上，我们在 Scheduler 中应该跳过 duration=0 的步骤
+      }
+    })
+
+    const allTaskChains = processedRecipes.map((recipe, idx) => {
       const color = `hsl(${idx * 60}, 70%, 85%)` 
       const category = recipe.category || 'main'
       
       return {
         recipeId: recipe.id,
         category,
-        steps: recipe.steps.map((s: any) => {
+        steps: recipe.steps
+          .filter((s: any) => s.duration_seconds > 0) // 过滤掉被合并的虚拟步骤
+          .map((s: any) => {
           let isActive = s.is_active
           // 优化：使用 includes 而不是 startsWith，以便识别 "转小火炖" 中的 "炖"
           const actionEntry = Object.values(ACTIONS).find((a: any) => {
@@ -223,25 +282,52 @@ export class KitchenScheduler {
 
           if (allocation) {
             // Buffer Logic: 增加任务间的缓冲时间
-            // 如果不是连续的同类型任务，我们在物理占用上可以稍微“膨胀”一点
-            // 这里简单实现：所有任务的 endTime 实际上多占用了 60秒 (Buffer)
-            // 但 display 的 block 还是原始时间。
-            // 在 book 时，我们传入一个 bufferedEnd = proposedEnd + 60
+            // 策略：
+            // 1. 基础 Buffer = 60秒 (1分钟)
+            // 2. 如果是 "cook" 类型且时长 > 10分钟，Buffer = 120秒 (2分钟)
+            // 3. "wait" 类型不需要 Buffer
+            // 4. 如果是同一厨师连续执行同一道菜的步骤，Buffer 可以减半 (30秒)
             
+            let bufferSeconds = 60
+            if (step.type === 'wait') bufferSeconds = 0
+            else if (step.type === 'cook' && step.duration > 600) bufferSeconds = 120
+
+            // 检查是否是同一厨师连续操作 (简化版：如果是主厨且上一步也是主厨，减半)
+            // 由于这里是 allocation 阶段，我们只能基于当前分配做判断
+            // 但我们可以简单地给 prep 任务较小的 buffer
+            if (step.type === 'prep') bufferSeconds = 30
+
             allocation.forEach(alloc => {
-              const bufferSeconds = 60 // 1 minute buffer
+              // 核心修改：占用时间延长到 end + bufferSeconds
+              // 这样下一个任务在检查 isAvailable 时，会发现这段时间（含Buffer）都被占用了
               this.resourceStates[alloc.type][alloc.index].book(proposedStart, proposedEnd + bufferSeconds, alloc.load, step.temp)
               
               outputBlocks.push({
                 step,
                 startTime: proposedStart,
-                endTime: proposedEnd,
+                endTime: proposedEnd, // 视觉上 block 还是原长度，不包含 buffer
                 lane: alloc.type as any,
                 resourceId: `${alloc.type}_${alloc.index + 1}`
               })
             })
             
-            lastStepEndTime = proposedStart 
+            // 关键：lastStepEndTime 也要相应前移，包含 buffer
+            // 因为我们是倒序排课，proposedStart 是任务开始时间
+            // 下一个（更早的）任务必须在 proposedStart 之前结束
+            // 所以不需要在这里修改 lastStepEndTime，因为 proposedStart 已经是占用的起点了
+            // Buffer 是加在任务 *之后* (时间轴的右侧)，也就是在 proposedEnd 之后
+            // 在倒序排课中，更早的任务（Step N-1）会在 Step N 的 Start 之前结束
+            // 所以这里的 Buffer 其实是加在了 Step N 和 Step N+1 之间 (如果按正序看)
+            
+            // 等等，倒序排课时：
+            // Step N (Late) -> Step N-1 (Early)
+            // 我们先排了 Step N，占用了 [Start, End]
+            // 然后排 Step N-1，它的 End 必须 <= Step N 的 Start
+            // 如果我们要加 Buffer，应该让 Step N-1 的 End <= Step N.Start - Buffer
+            
+            // 所以，我们应该更新 lastStepEndTime (它其实是下一个拟排任务的 proposedEnd 上限)
+            lastStepEndTime = proposedStart - bufferSeconds
+            
             placed = true
           } else {
             proposedEnd -= 30 
