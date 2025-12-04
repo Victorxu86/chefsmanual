@@ -42,6 +42,17 @@ export function LiveSessionClient() {
   
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Helper: Check if task dependencies are met (same recipe, previous steps)
+  const isDependencyMet = (task: LiveTask, allTasks: LiveTask[]) => {
+    // Find all tasks from the same recipe with a lower stepOrder
+    const dependencies = allTasks.filter(t => 
+        t.step.recipeId === task.step.recipeId && 
+        t.step.stepOrder < task.step.stepOrder
+    )
+    // All of them must be completed
+    return dependencies.every(d => d.status === 'completed')
+  }
+
   // 1. Initialize from LocalStorage
   useEffect(() => {
     const raw = localStorage.getItem('cooking_session')
@@ -56,14 +67,13 @@ export function LiveSessionClient() {
       
       const initialTasks = data.timeline.map((block: any, index: number) => ({
         ...block,
-        // Add unique ID for runtime tracking if not present
         runtimeId: `task_${index}`,
         status: 'pending'
       }))
 
       const initialChefs = Array.from({ length: data.resources.chef }).map((_, i) => ({
         id: `chef_${i+1}`,
-        name: i === 0 ? "主厨 (Main)" : `帮厨 #${i}`
+        name: i === 0 ? "主厨 (我)" : `帮厨 #${i}`
       }))
 
       setLiveState(prev => ({
@@ -71,7 +81,6 @@ export function LiveSessionClient() {
         tasks: initialTasks,
         chefs: initialChefs
       }))
-
     } catch (e) {
       console.error("Failed to load session", e)
       router.push('/session')
@@ -105,19 +114,17 @@ export function LiveSessionClient() {
       let hasChanges = false
 
       // A. Identify Active Tasks
-      // Logic: Task starts if time >= startTime AND task is pending 
-      // OR if it is forced active (manual override)
+      // Logic: Task can start if:
+      // 1. Dependencies met AND (Time reached OR Force Active)
       nextTasks.forEach(task => {
         if (task.status === 'pending') {
-            // Check previous task for this chef
-            // If previous task is completed, we can potentially auto-start this one if it's the immediate next
-            // But for now, we rely on forceActive or time
-            
-            if (prev.elapsedSeconds >= task.startTime || task.forceActive) {
-                task.status = 'active'
-                // If forced, we might be starting early, so actStartTime is now
-                task.actualStartTime = prev.elapsedSeconds
-                hasChanges = true
+            // Crucial: Check dependencies first
+            if (isDependencyMet(task, nextTasks)) {
+                if (prev.elapsedSeconds >= task.startTime || task.forceActive) {
+                    task.status = 'active'
+                    task.actualStartTime = prev.elapsedSeconds // Start now
+                    hasChanges = true
+                }
             }
         }
       })
@@ -128,7 +135,8 @@ export function LiveSessionClient() {
         const activeTask = nextTasks.find(t => t.status === 'active' && t.resourceId === chef.id)
         
         // Find next pending task (that is NOT active)
-        // We sort by startTime to get the true next
+        // We sort by startTime to get the true next, but filter by dependency too ideally
+        // For display "Next Up", we just show the scheduled next, regardless of blocking
         const nextTask = nextTasks
             .filter(t => t.status === 'pending' && t.resourceId === chef.id)
             .sort((a, b) => a.startTime - b.startTime)[0]
@@ -164,22 +172,38 @@ export function LiveSessionClient() {
         actualEndTime: prev.elapsedSeconds
       }
 
-      // 2. Find next task for this chef and FORCE ACTIVE it
-      // This ensures smooth transition without waiting for scheduler time
-      const nextTaskIndex = nextTasks.findIndex(t => 
-        t.resourceId === completedTask.resourceId && 
-        t.status === 'pending'
+      // 2. Cross-Task Trigger (Strict Dependency & Schedule Check)
+      // Force activate logic:
+      // We only force activate tasks that are truly next in line for a chef AND have dependencies met.
+      // We CANNOT skip the sequence.
+
+      const activeChefIds = new Set(
+          nextTasks.filter(t => t.status === 'active').map(t => t.resourceId)
       )
-      
-      if (nextTaskIndex !== -1) {
-        // Check if we should activate it. 
-        // For now, we always activate the immediate next task for the chef to keep flow going.
-        // In a more complex system, we'd check dependencies from other chefs.
-        nextTasks[nextTaskIndex] = {
-            ...nextTasks[nextTaskIndex],
-            forceActive: true
-        }
-      }
+
+      // Iterate through all pending tasks sorted by startTime to respect the schedule order
+      const sortedPendingTasks = nextTasks
+        .map((t, index) => ({ ...t, originalIndex: index }))
+        .filter(t => t.status === 'pending')
+        .sort((a, b) => a.startTime - b.startTime)
+
+      sortedPendingTasks.forEach((task) => {
+          if (!activeChefIds.has(task.resourceId)) {
+             // Check if this is the very first pending task for this chef
+             // We must ensure we don't jump the queue
+             const isFirstForChef = sortedPendingTasks.find(t => t.resourceId === task.resourceId)?.runtimeId === task.runtimeId
+
+             if (isFirstForChef && isDependencyMet(task, nextTasks)) {
+                 // Force Activate!
+                 nextTasks[task.originalIndex] = {
+                     ...task,
+                     forceActive: true
+                 }
+                 // Mark chef as busy
+                 activeChefIds.add(task.resourceId)
+             }
+          }
+      })
 
       return { ...prev, tasks: nextTasks }
     })
@@ -199,14 +223,15 @@ export function LiveSessionClient() {
         const taskIndex = nextTasks.findIndex(t => t.runtimeId === lastCompleted.runtimeId)
         
         // 1. Revert status to active
+        // 2. Reset actualStartTime to NOW (elapsedSeconds) to restart timer
         nextTasks[taskIndex] = {
             ...lastCompleted,
             status: 'active',
-            actualEndTime: undefined
+            actualEndTime: undefined,
+            actualStartTime: prev.elapsedSeconds // Restart timer!
         }
 
-        // 2. If there was a task that got force-activated or auto-started, we should probably pause it?
-        // For simplicity, if there is currently an active task (which implies we moved on), we push it back to pending
+        // 3. If there was a task that got force-activated or auto-started, pause it
         const currentActive = chefTasks.find(t => t.status === 'active')
         if (currentActive) {
              const activeIndex = nextTasks.findIndex(t => t.runtimeId === currentActive.runtimeId)
@@ -221,7 +246,7 @@ export function LiveSessionClient() {
     })
   }
 
-  if (!sessionData) return <div className="p-8">Loading mission data...</div>
+  if (!sessionData) return <div className="p-8">加载烹饪数据...</div>
 
   const isSingleChef = liveState.chefs.length === 1
 
@@ -233,11 +258,19 @@ export function LiveSessionClient() {
           <button onClick={() => router.back()} className="p-2 hover:bg-black/5 rounded-full text-[var(--color-main)] transition-colors">
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="font-bold tracking-wider text-lg text-[var(--color-main)]">LIVE COOKING SESSION</h1>
+          <h1 className="font-bold tracking-wider text-lg text-[var(--color-main)]">烹饪导航</h1>
         </div>
-        <div className="font-mono text-xl font-bold text-[var(--color-accent)] flex items-center gap-2">
-          <Clock className="h-5 w-5" />
-          {new Date(liveState.elapsedSeconds * 1000).toISOString().substr(11, 8)}
+        <div className="flex items-center gap-4">
+            <button 
+              onClick={() => router.back()}
+              className="px-4 py-1.5 rounded-full border border-[var(--color-border-theme)] text-sm font-bold text-[var(--color-muted)] hover:bg-[var(--color-accent)] hover:text-white hover:border-[var(--color-accent)] transition-all"
+            >
+              返回
+            </button>
+            <div className="font-mono text-xl font-bold text-[var(--color-accent)] flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              {new Date(liveState.elapsedSeconds * 1000).toISOString().substr(11, 8)}
+            </div>
         </div>
       </div>
 
@@ -266,7 +299,7 @@ export function LiveSessionClient() {
                 />
             ) : (
                 <div className="p-6 flex flex-col relative bg-[var(--color-card)]/50 items-center justify-center text-[var(--color-muted)]">
-                    Single Chef Mode
+                    单人烹饪模式
                 </div>
             )
         )}
@@ -311,36 +344,41 @@ function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onUndo, isSecond
                         <div className="mb-8">
                             <div className="flex items-center gap-3 mb-4 text-[var(--color-muted)]">
                                 {currentTask.step.type === 'cook' ? <Flame className="h-6 w-6 text-orange-500" /> : <CheckCircle className="h-6 w-6 text-green-500" />}
-                                <span className="uppercase font-bold text-sm tracking-wider">{currentTask.step.type}</span>
+                                <span className="uppercase font-bold text-sm tracking-wider">{
+                                    currentTask.step.type === 'cook' ? '烹饪' : 
+                                    currentTask.step.type === 'prep' ? '备菜' : 
+                                    currentTask.step.type === 'wait' ? '等待' : 
+                                    currentTask.step.type === 'serve' ? '装盘' : currentTask.step.type
+                                }</span>
                             </div>
-                            <h2 className={`${isSingleMode ? 'text-5xl' : 'text-3xl'} font-bold text-[var(--color-main)] leading-tight`}>
+                            <h2 className={`${isSingleMode ? 'text-6xl' : 'text-4xl'} font-bold text-[var(--color-main)] leading-tight`}>
                                 {currentTask.step.instruction}
                             </h2>
                         </div>
 
                         {/* Countdown */}
                         <div className="flex items-end gap-2 mb-10">
-                            <span className={`${isSingleMode ? 'text-7xl' : 'text-5xl'} font-mono font-bold text-[var(--color-main)]`}>
+                            <span className={`${isSingleMode ? 'text-8xl' : 'text-6xl'} font-mono font-bold text-[var(--color-main)]`}>
                                 {Math.max(0, Math.ceil(currentTask.step.duration - (elapsedSeconds - currentTask.actualStartTime))).toString()}
                             </span>
-                            <span className="text-lg text-[var(--color-muted)] mb-3">sec left</span>
+                            <span className="text-xl text-[var(--color-muted)] mb-4">秒剩余</span>
                         </div>
 
                         {/* Controls */}
                         <div className="flex gap-4">
                             <button 
                                 onClick={onUndo}
-                                className="px-4 py-4 border border-[var(--color-border-theme)] text-[var(--color-muted)] font-bold rounded-[var(--radius-theme)] hover:bg-black/5 transition-all flex items-center justify-center"
+                                className="px-6 py-4 border border-[var(--color-border-theme)] text-[var(--color-muted)] font-bold rounded-[var(--radius-theme)] hover:bg-black/5 transition-all flex items-center justify-center"
                                 title="返回上一步"
                             >
-                                <ChevronLeft className="h-6 w-6" />
+                                <ChevronLeft className="h-8 w-8" />
                             </button>
                             
                             <button 
                                 onClick={() => onComplete(currentTask.runtimeId)}
-                                className="flex-1 py-4 bg-[var(--color-accent)] text-white font-bold rounded-[var(--radius-theme)] hover:opacity-90 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2 text-xl"
+                                className="flex-1 py-4 bg-[var(--color-accent)] text-white font-bold rounded-[var(--radius-theme)] hover:opacity-90 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2 text-2xl"
                             >
-                                <CheckCircle className="h-6 w-6" />
+                                <CheckCircle className="h-8 w-8" />
                                 完成步骤
                             </button>
                         </div>
@@ -349,26 +387,26 @@ function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onUndo, isSecond
             ) : (
                 <div className="text-[var(--color-muted)] text-center animate-pulse">
                     <Clock className="h-16 w-16 mx-auto mb-6 opacity-20" />
-                    <p className="text-xl font-medium">等待任务分配...</p>
-                    <p className="text-sm mt-2 opacity-60">系统正在为您安排最佳时机</p>
+                    <p className="text-2xl font-medium">等待任务分配...</p>
+                    <p className="text-base mt-2 opacity-60">正在等待前置步骤完成或时间点</p>
                 </div>
             )}
 
             {/* Next Up */}
             {nextTask && (
                 <div className={`w-full ${isSingleMode ? 'max-w-3xl' : 'max-w-md'} opacity-60 hover:opacity-100 transition-opacity`}>
-                    <div className="text-xs font-bold text-[var(--color-muted)] uppercase mb-2 pl-1">Next Up</div>
+                    <div className="text-xs font-bold text-[var(--color-muted)] uppercase mb-2 pl-1">下个任务</div>
                     <div className="bg-[var(--color-card)] border border-[var(--color-border-theme)] p-4 rounded-lg flex items-center justify-between cursor-pointer group"
                          onClick={() => {/* Optional: Allow peeking or jumping */}}
                     >
                         <div className="flex items-center gap-3">
-                            <span className="font-bold text-[var(--color-main)] text-lg group-hover:text-[var(--color-accent)] transition-colors">
+                            <span className="font-bold text-[var(--color-main)] text-xl group-hover:text-[var(--color-accent)] transition-colors">
                                 {nextTask.step.instruction}
                             </span>
                         </div>
                         <div className="flex items-center gap-3">
                             <span className="text-xs bg-[var(--color-border-theme)] px-2 py-1 rounded text-[var(--color-muted)]">
-                                {Math.round(nextTask.step.duration / 60)}m
+                                {Math.round(nextTask.step.duration / 60)}分
                             </span>
                             <ChevronRight className="h-4 w-4 text-[var(--color-muted)]" />
                         </div>
@@ -379,4 +417,3 @@ function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onUndo, isSecond
         </div>
     )
 }
-
