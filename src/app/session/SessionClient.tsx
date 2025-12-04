@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from "react"
 import { KitchenScheduler, ScheduledBlock } from "@/lib/scheduler"
-import { ChefHat, Play, Check, Settings, Flame, Mic, Box, Clock, Square, Soup, User, X, Plus } from "lucide-react"
+import { ChefHat, Play, Check, Settings, Flame, Mic, Box, Clock, Square, Soup, User, X, Plus, BookOpen, AlignLeft } from "lucide-react"
+import { RECIPE_CATEGORIES } from "@/lib/constants"
 
 export function SessionClient({ recipes }: { recipes: any[] }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -108,8 +109,11 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
       {/* Left Sidebar */}
       <div className="w-80 flex-shrink-0 bg-[var(--color-card)] border border-[var(--color-border-theme)] rounded-[var(--radius-theme)] flex flex-col">
         <div className="p-4 border-b border-[var(--color-border-theme)]">
-          <h2 className="font-bold text-[var(--color-main)]">第一步：选择菜谱</h2>
-          <p className="text-xs text-[var(--color-muted)]">勾选您今天要做的菜</p>
+          <h2 className="font-bold text-[var(--color-main)] flex items-center gap-2">
+             <BookOpen className="h-5 w-5" />
+             选择菜谱
+          </h2>
+          <p className="text-xs text-[var(--color-muted)] mt-1">勾选您今天要做的菜</p>
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-2">
           {recipes.map(r => (
@@ -130,7 +134,11 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
                 <div>
                   <h4 className="text-sm font-bold text-[var(--color-main)] line-clamp-1">{r.title}</h4>
                   <span className="text-[10px] text-[var(--color-muted)]">
-                    {r.category ? <span className="uppercase bg-black/10 px-1 rounded mr-1">{r.category}</span> : null}
+                    {r.category ? (
+                        <span className="uppercase bg-black/10 px-1 rounded mr-1">
+                            {RECIPE_CATEGORIES.find(c => c.value === r.category)?.label.split(' ')[0] || r.category}
+                        </span>
+                    ) : null}
                     {r.total_time_minutes}m
                   </span>
                 </div>
@@ -195,6 +203,7 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h2 className="font-bold text-[var(--color-main)] flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
                   厨房资源配置
                 </h2>
                 <p className="text-sm text-[var(--color-muted)]">
@@ -255,10 +264,13 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
         {/* Bottom: Gantt Chart (Expanded) */}
         <div className="flex-1 bg-[var(--color-card)] border border-[var(--color-border-theme)] rounded-[var(--radius-theme)] overflow-hidden flex flex-col relative min-h-0 shadow-sm hover:shadow-md transition-shadow">
           <div className="h-14 border-b border-[var(--color-border-theme)] flex items-center px-6 justify-between bg-[var(--color-card)] z-10 flex-shrink-0">
-            <h2 className="font-bold text-[var(--color-main)] text-lg">智能调度预览</h2>
+            <h2 className="font-bold text-[var(--color-main)] text-lg flex items-center gap-2">
+                <AlignLeft className="h-5 w-5" />
+                智能调度预览
+            </h2>
             <button 
               disabled={selectedIds.size === 0}
-              className="px-6 py-2 bg-[var(--color-accent)] text-white rounded-full text-sm font-bold flex items-center gap-2 hover:bg-[var(--color-accent-dark)] hover:text-white shadow-lg shadow-[var(--color-accent)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95"
+              className="px-6 py-2 bg-[var(--color-accent)] text-white rounded-full text-sm font-bold flex items-center gap-2 hover:bg-[var(--color-accent-dark)] shadow-lg shadow-[var(--color-accent)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95"
             >
               <Play className="h-4 w-4" /> 开始烹饪导航
             </button>
