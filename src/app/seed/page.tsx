@@ -8,6 +8,7 @@ const RECIPES = [
     title: "蒸米饭",
     description: "粒粒分明，软糯香甜的基础主食。",
     cuisine: "chinese",
+    category: "staple", // 新增分类
     difficulty: "easy",
     servings: 4,
     ingredients: [
@@ -26,6 +27,7 @@ const RECIPES = [
     title: "宫保鸡丁",
     description: "经典川菜，糊辣荔枝味，鸡肉鲜嫩，花生酥脆。",
     cuisine: "chinese",
+    category: "main", // 新增分类
     difficulty: "medium",
     servings: 2,
     ingredients: [
@@ -55,6 +57,7 @@ const RECIPES = [
     title: "玉米排骨汤",
     description: "清甜滋润，营养丰富，适合全家享用的靓汤。",
     cuisine: "chinese",
+    category: "soup", // 新增分类
     difficulty: "easy",
     servings: 4,
     ingredients: [
@@ -82,6 +85,7 @@ const RECIPES = [
     title: "杨枝甘露",
     description: "港式经典甜品，芒果椰香浓郁，西米Q弹爽滑。",
     cuisine: "chinese",
+    category: "dessert", // 新增分类
     difficulty: "medium",
     servings: 4,
     ingredients: [
@@ -100,11 +104,12 @@ const RECIPES = [
       { instruction: "芒果打泥", duration: 120, step_type: "prep", is_active: true, equipment: "blender" },
       { instruction: "混合芒果泥和椰浆", duration: 120, step_type: "prep", is_active: true, equipment: "bowl" },
       { instruction: "加入西米和柚子", duration: 60, step_type: "prep", is_active: true, equipment: "bowl" },
-      { instruction: "冷藏静置", duration: 1800, step_type: "wait", is_active: false, equipment: "refrigerator" } // refrigerator不在enum里，可能报错
+      { instruction: "冷藏静置", duration: 1800, step_type: "wait", is_active: false, equipment: "bowl" } // 改为 bowl 或 fridge (如果加了的话)
     ]
   }
 ]
 
+// ... rest of the file (seedAction) ...
 async function seedAction() {
   'use server'
   
@@ -122,6 +127,7 @@ async function seedAction() {
       title: recipeData.title,
       description: recipeData.description,
       cuisine: recipeData.cuisine,
+      category: recipeData.category, // 插入分类
       difficulty: recipeData.difficulty,
       servings: recipeData.servings,
       author_id: user.id,
@@ -182,10 +188,10 @@ export default function SeedPage() {
           type="submit"
           className="px-8 py-4 bg-black text-white rounded-full font-bold text-xl hover:scale-105 transition-transform"
         >
-          🚀 生成 4 道预制菜谱
+          🚀 生成 4 道预制菜谱 (V2)
         </button>
       </form>
-      <p className="text-sm text-gray-500">请查看 Vercel Logs 以获取详细错误信息</p>
+      <p className="text-sm text-gray-500">此操作会插入新菜谱，不会删除旧菜谱</p>
     </div>
   )
 }
