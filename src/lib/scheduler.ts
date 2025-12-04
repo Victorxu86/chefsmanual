@@ -40,7 +40,6 @@ class ResourceTimeline {
   public totalBookedTime: number = 0
 
   isAvailable(start: number, end: number, capacity: number, required: number): boolean {
-    // ... (keep existing logic)
     const overlaps = this.occupied.filter(interval => 
       !(interval.end <= start || interval.start >= end)
     )
