@@ -24,6 +24,7 @@ interface Recipe {
 export function PlanClient({ recipes }: { recipes: any[] }) {
   const router = useRouter()
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({})
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   // Load checked items from localStorage on mount
   useEffect(() => {
