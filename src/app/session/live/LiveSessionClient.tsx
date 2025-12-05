@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import { ScheduledBlock } from "@/lib/scheduler"
 import { ArrowLeft, Play, Pause, CheckCircle, AlertCircle, Clock, Flame, User, ChefHat, ChevronLeft, ChevronRight } from "lucide-react"
 
+import { createClient } from "@/utils/supabase/client"
+
 // === State Models ===
 
 interface LiveTask extends ScheduledBlock {
@@ -180,6 +182,30 @@ export function LiveSessionClient() {
         ...completedTask,
         status: 'completed',
         actualEndTime: prev.elapsedSeconds
+      }
+
+      // Check if ALL tasks are completed
+      const allCompleted = nextTasks.every(t => t.status === 'completed')
+      if (allCompleted && sessionData) {
+          // Save session to Supabase history (Async fire-and-forget)
+          const supabase = createClient()
+          
+          // We use 'void' to detach the promise and avoid blocking state update
+          void (async () => {
+              try {
+                  const { data: { user } } = await supabase.auth.getUser()
+                  if (user) {
+                      await supabase.from('cooking_sessions').insert({
+                          user_id: user.id,
+                          total_duration_seconds: prev.elapsedSeconds,
+                          recipes: sessionData.recipes || [],
+                          status: 'completed'
+                      })
+                  }
+              } catch (err) {
+                  console.error("Failed to save session history:", err)
+              }
+          })()
       }
 
       // 2. Cross-Task Trigger (Strict Dependency & Schedule Check)
