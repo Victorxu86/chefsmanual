@@ -26,7 +26,7 @@ export default async function PlanPage() {
   if (finalRecipes.length > 0) {
       const recipeIds = finalRecipes.map(r => r.id)
       const { data: ingredientsData, error: ingredientsError } = await supabase
-        .from("ingredients")
+        .from("recipe_ingredients")
         .select("*")
         .in("recipe_id", recipeIds)
       
