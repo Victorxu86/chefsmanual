@@ -19,4 +19,3 @@ create policy "Users can insert their own sessions"
 create policy "Users can view their own sessions"
   on cooking_sessions for select
   using (auth.uid() = user_id);
-
