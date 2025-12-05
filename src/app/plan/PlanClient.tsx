@@ -72,7 +72,9 @@ export function PlanClient({ recipes }: { recipes: any[] }) {
       const recipe = recipes.find(r => r.id === id)
       if (recipe?.ingredients) {
         recipe.ingredients.forEach((ing: Ingredient) => {
-          const key = ing.name.trim()
+          const key = (ing.name || "").trim()
+          if (!key) return; // Skip empty names
+
           if (!list[key]) {
               list[key] = { name: key, items: [], totalAmount: 0, unit: ing.unit }
           }
