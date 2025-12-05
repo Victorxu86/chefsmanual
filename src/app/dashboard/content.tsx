@@ -130,8 +130,8 @@ export function DashboardContent({ userName }: { userName: string }) {
               </p>
             </div>
             <div className="mt-8">
-              <Link href="/plan" className="flex items-center gap-2 text-[var(--color-accent)] font-bold hover:gap-3 transition-all">
-                创建计划 <ArrowRight className="h-5 w-5" />
+              <Link href="/session" className="flex items-center gap-2 text-[var(--color-accent)] font-bold hover:gap-3 transition-all">
+                选择菜谱 <ArrowRight className="h-5 w-5" />
               </Link>
             </div>
           </div>
