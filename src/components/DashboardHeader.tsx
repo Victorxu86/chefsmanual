@@ -36,7 +36,7 @@ export function DashboardHeader({ userEmail }: { userEmail: string }) {
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[var(--color-muted)]">
             <Link href="/dashboard" className="hover:text-[var(--color-main)] transition-colors">概览</Link>
             <Link href="/recipes" className="hover:text-[var(--color-main)] transition-colors">我的菜谱</Link>
-            <Link href="/session" className="hover:text-[var(--color-main)] transition-colors">开始烹饪</Link>
+            <Link href="/plan" className="hover:text-[var(--color-main)] transition-colors">计划</Link>
             <Link href="/market" className="hover:text-[var(--color-main)] transition-colors">商店</Link>
           </nav>
         </div>

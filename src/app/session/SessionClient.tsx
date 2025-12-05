@@ -4,11 +4,21 @@ import { useState, useMemo, useEffect } from "react"
 import { KitchenScheduler, ScheduledBlock } from "@/lib/scheduler"
 import { ChefHat, Play, Check, Settings, Flame, Mic, Box, Clock, Square, Soup, User, X, Plus, BookOpen, AlignLeft } from "lucide-react"
 import { RECIPE_CATEGORIES } from "@/lib/constants"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 
 export function SessionClient({ recipes }: { recipes: any[] }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  
+  // Init from query params
+  useEffect(() => {
+    const ids = searchParams.get('ids')
+    if (ids) {
+        const idSet = new Set(ids.split(','))
+        setSelectedIds(idSet)
+    }
+  }, [searchParams])
   
   const [resources, setResources] = useState({
     stove: 2,
@@ -89,7 +99,7 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
     }
     
     localStorage.setItem('cooking_session', JSON.stringify(sessionData))
-
+    
     // 2. Navigate to Live page
     router.push('/session/live')
   }
