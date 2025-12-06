@@ -7,8 +7,8 @@ import { ArrowLeft, Play, Pause, CheckCircle, AlertCircle, Clock, Flame, User, C
 
 // ... (Existing imports)
 
-// Add Recipe Picker for "Add Dish"
 import { useMemo } from "react"
+import { createClient } from "@/utils/supabase/client"
 
 // ... (State Models)
 
