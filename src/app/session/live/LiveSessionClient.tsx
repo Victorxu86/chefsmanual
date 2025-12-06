@@ -1,13 +1,9 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { ScheduledBlock } from "@/lib/scheduler"
 import { ArrowLeft, Play, Pause, CheckCircle, AlertCircle, Clock, Flame, User, ChefHat, ChevronLeft, ChevronRight, Plus, X } from "lucide-react"
-
-// ... (Existing imports)
-
-import { useMemo, useCallback } from "react"
 import { createClient } from "@/utils/supabase/client"
 
 // === State Models ===
@@ -46,31 +42,33 @@ export function LiveSessionClient() {
   })
   
   const timerRef = useRef<NodeJS.Timeout | null>(null)
-
-  // ... (Existing state)
   const [isAddingDish, setIsAddingDish] = useState(false)
   const [availableRecipes, setAvailableRecipes] = useState<any[]>([])
 
-  // ... (Existing effects)
+  // Helper: Check if task dependencies are met (same recipe, previous steps)
+  const isDependencyMet = (task: LiveTask, allTasks: LiveTask[]) => {
+    const dependencies = allTasks.filter(t => 
+        t.step.recipeId === task.step.recipeId && 
+        t.step.stepOrder < task.step.stepOrder
+    )
+    return dependencies.every(d => d.status === 'completed')
+  }
 
-  // Fetch recipes for "Add Dish" modal
-  useEffect(() => {
-      if (isAddingDish && availableRecipes.length === 0) {
-          const fetchRecipes = async () => {
-              const supabase = createClient()
-              const { data: { user } } = await supabase.auth.getUser()
-              if (!user) return
-
-              const { data } = await supabase
-                .from("recipes")
-                .select(`*, recipe_steps(*)`)
-                .eq("author_id", user.id)
-              
-              if (data) setAvailableRecipes(data)
-          }
-          fetchRecipes()
-      }
-  }, [isAddingDish])
+  // Helper: Update Chef Assignments based on current tasks
+  const updateChefAssignments = (tasks: LiveTask[], currentChefs: ChefState[], elapsedSeconds: number) => {
+    return currentChefs.map(chef => {
+        const activeTask = tasks.find(t => t.status === 'active' && t.resourceId === chef.id)
+        const nextTask = tasks
+            .filter(t => t.status === 'pending' && t.resourceId === chef.id)
+            .sort((a, b) => a.startTime - b.startTime)[0]
+        
+        return {
+            ...chef,
+            currentTaskId: activeTask?.runtimeId,
+            nextTaskId: nextTask?.runtimeId
+        }
+    })
+  }
 
   const handleAddDish = useCallback((newRecipe: any) => {
       setLiveState((prev) => {
@@ -108,7 +106,258 @@ export function LiveSessionClient() {
       })
   }, [])
 
+  // 1. Initialize from LocalStorage
+  useEffect(() => {
+    const raw = localStorage.getItem('cooking_session')
+    if (!raw) {
+      router.push('/session')
+      return
+    }
+    
+    try {
+      const data = JSON.parse(raw)
+      setSessionData(data)
+      
+      const initialTasks = data.timeline.map((block: any, index: number) => ({
+        ...block,
+        runtimeId: `task_${index}`,
+        status: 'pending'
+      }))
+
+      const initialChefs = Array.from({ length: data.resources.chef }).map((_, i) => ({
+        id: `chef_${i+1}`,
+        name: i === 0 ? "主厨 (我)" : `帮厨 #${i}`
+      }))
+
+      setLiveState(prev => ({
+        ...prev,
+        tasks: initialTasks,
+        chefs: initialChefs
+      }))
+    } catch (e) {
+      console.error("Failed to load session", e)
+      router.push('/session')
+    }
+  }, [])
+
+  // 2. Timer Engine
+  useEffect(() => {
+    if (!liveState.isPaused) {
+      timerRef.current = setInterval(() => {
+        setLiveState(prev => ({
+          ...prev,
+          elapsedSeconds: prev.elapsedSeconds + 1
+        }))
+      }, 1000)
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [liveState.isPaused])
+
   // 3. Task Resolver (The Brain)
+  useEffect(() => {
+    if (!sessionData || liveState.tasks.length === 0) return
+
+    setLiveState(prev => {
+      const nextTasks = [...prev.tasks]
+      let hasChanges = false
+
+      // A. Identify Active Tasks
+      nextTasks.forEach(task => {
+        if (task.status === 'pending') {
+            const readyTime = prev.elapsedSeconds >= task.startTime;
+            const forced = task.forceActive;
+            const depsMet = isDependencyMet(task, nextTasks);
+            
+            if (forced || (depsMet && readyTime)) {
+                task.status = 'active'
+                task.actualStartTime = prev.elapsedSeconds // Start now
+                hasChanges = true
+            }
+        }
+      })
+
+      // B. Update Chef Assignments
+      const nextChefs = updateChefAssignments(nextTasks, prev.chefs, prev.elapsedSeconds)
+      
+      // Force update if tasks changed status
+      const tasksChanged = JSON.stringify(nextTasks.map(t => t.status)) !== JSON.stringify(prev.tasks.map(t => t.status))
+      
+      // Check if chefs changed
+      const chefsChanged = JSON.stringify(nextChefs) !== JSON.stringify(prev.chefs)
+
+      if (!hasChanges && !chefsChanged && !tasksChanged) return prev
+      return { ...prev, tasks: nextTasks, chefs: nextChefs }
+    })
+  }, [liveState.elapsedSeconds, sessionData])
+
+  // Fetch recipes for "Add Dish" modal
+  useEffect(() => {
+      if (isAddingDish && availableRecipes.length === 0) {
+          const fetchRecipes = async () => {
+              const supabase = createClient()
+              const { data: { user } } = await supabase.auth.getUser()
+              if (!user) return
+
+              const { data } = await supabase
+                .from("recipes")
+                .select(`*, recipe_steps(*)`)
+                .eq("author_id", user.id)
+              
+              if (data) setAvailableRecipes(data)
+          }
+          fetchRecipes()
+      }
+  }, [isAddingDish])
+
+  const togglePlayPause = () => {
+    setLiveState(prev => ({ ...prev, isPaused: !prev.isPaused }))
+  }
+
+  const handleCompleteTask = (runtimeId: string) => {
+    setLiveState(prev => {
+      const completedTaskIndex = prev.tasks.findIndex(t => t.runtimeId === runtimeId)
+      if (completedTaskIndex === -1) return prev
+
+      const completedTask = prev.tasks[completedTaskIndex]
+      const nextTasks = [...prev.tasks]
+      
+      // 1. Mark current as completed
+      nextTasks[completedTaskIndex] = {
+        ...completedTask,
+        status: 'completed',
+        actualEndTime: prev.elapsedSeconds
+      }
+
+      // Check if ALL tasks are completed
+      const allCompleted = nextTasks.every(t => t.status === 'completed')
+      if (allCompleted && sessionData) {
+          // Save session to Supabase history (Async fire-and-forget)
+          const supabase = createClient()
+          
+          // We use 'void' to detach the promise and avoid blocking state update
+          void (async () => {
+              try {
+                  const { data: { user } } = await supabase.auth.getUser()
+                  if (user) {
+                      await supabase.from('cooking_sessions').insert({
+                          user_id: user.id,
+                          total_duration_seconds: prev.elapsedSeconds,
+                          recipes: sessionData.recipes || [],
+                          status: 'completed'
+                      })
+                  }
+              } catch (err) {
+                  console.error("Failed to save session history:", err)
+              }
+          })()
+      }
+
+      // 2. Cross-Task Trigger (Strict Dependency & Schedule Check)
+      // Force activate logic:
+      
+      const activeChefIds = new Set(
+          nextTasks.filter(t => t.status === 'active').map(t => t.resourceId)
+      )
+
+      // Iterate through all pending tasks sorted by startTime to respect the schedule order
+      const sortedPendingTasks = nextTasks
+        .map((t, index) => ({ ...t, originalIndex: index }))
+        .filter(t => t.status === 'pending')
+        .sort((a, b) => a.startTime - b.startTime)
+
+      sortedPendingTasks.forEach((task) => {
+          if (!activeChefIds.has(task.resourceId)) {
+             // Check if this is the very first pending task for this chef
+             const isFirstForChef = sortedPendingTasks.find(t => t.resourceId === task.resourceId)?.runtimeId === task.runtimeId
+
+             // Logic Update: 
+             if (isFirstForChef && isDependencyMet(task, nextTasks)) {
+                 // Force Activate!
+                 nextTasks[task.originalIndex] = {
+                     ...task,
+                     forceActive: true,
+                     status: 'active', // Explicitly set active here to be safe
+                     actualStartTime: prev.elapsedSeconds // Start NOW
+                 }
+                 // Mark chef as busy so we don't activate 2 tasks for same person
+                 activeChefIds.add(task.resourceId)
+             }
+          }
+      })
+      
+      // 3. Update assignments IMMEDIATELY to avoid lag
+      const nextChefs = updateChefAssignments(nextTasks, prev.chefs, prev.elapsedSeconds)
+
+      return { ...prev, tasks: nextTasks, chefs: nextChefs }
+    })
+  }
+
+  // New handler for manual force start from waiting screen
+  const handleForceStart = (runtimeId: string) => {
+    setLiveState(prev => {
+      const nextTasks = [...prev.tasks]
+      const taskIndex = nextTasks.findIndex(t => t.runtimeId === runtimeId)
+      if (taskIndex === -1) return prev
+      
+      // Force activate immediately
+      nextTasks[taskIndex] = {
+          ...nextTasks[taskIndex],
+          forceActive: true,
+          status: 'active',
+          actualStartTime: prev.elapsedSeconds
+      }
+      
+      // Update assignments
+      const nextChefs = updateChefAssignments(nextTasks, prev.chefs, prev.elapsedSeconds)
+      return { ...prev, tasks: nextTasks, chefs: nextChefs }
+    })
+  }
+
+  const handleUndo = (chefId: string) => {
+    setLiveState(prev => {
+        // Find the most recently completed task for this chef
+        const chefTasks = prev.tasks.filter(t => t.resourceId === chefId)
+        const lastCompleted = chefTasks
+            .filter(t => t.status === 'completed')
+            .sort((a, b) => (b.actualEndTime || 0) - (a.actualEndTime || 0))[0] // Sort desc by end time
+        
+        if (!lastCompleted) return prev
+
+        const nextTasks = [...prev.tasks]
+        const taskIndex = nextTasks.findIndex(t => t.runtimeId === lastCompleted.runtimeId)
+        
+        // 1. Revert status to active
+        // 2. Reset actualStartTime to NOW (elapsedSeconds) to restart timer
+        nextTasks[taskIndex] = {
+            ...lastCompleted,
+            status: 'active',
+            actualEndTime: undefined,
+            actualStartTime: prev.elapsedSeconds // Restart timer!
+        }
+
+        // 3. If there was a task that got force-activated or auto-started, pause it
+        const currentActive = chefTasks.find(t => t.status === 'active')
+        if (currentActive) {
+             const activeIndex = nextTasks.findIndex(t => t.runtimeId === currentActive.runtimeId)
+             nextTasks[activeIndex] = {
+                 ...currentActive,
+                 status: 'pending',
+                 forceActive: false
+             }
+        }
+        
+        // 4. Update assignments IMMEDIATELY
+        const nextChefs = updateChefAssignments(nextTasks, prev.chefs, prev.elapsedSeconds)
+
+        return { ...prev, tasks: nextTasks, chefs: nextChefs }
+    })
+  }
+
+  if (!sessionData) return <div className="p-8">加载烹饪数据...</div>
 
   const isSingleChef = liveState.chefs.length === 1
 
