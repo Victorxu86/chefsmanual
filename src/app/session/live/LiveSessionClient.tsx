@@ -38,15 +38,10 @@ export function LiveSessionClient() {
       }
   }, [isAddingDish])
 
+  // Defined INSIDE the component body, within scope of setLiveState
   const handleAddDish = (newRecipe: any) => {
       setLiveState(prev => {
-          // 1. Identify "Locked" Tasks (Completed or Active)
-          const lockedTasks = prev.tasks.filter(t => t.status === 'completed' || t.status === 'active')
-          
-          // 2. Identify "Pending" Tasks (To be rescheduled)
-          const pendingTasks = prev.tasks.filter(t => t.status === 'pending')
-
-          // 3. Create new tasks from new recipe
+          // 1. Create new tasks from new recipe
           const newSteps = newRecipe.recipe_steps.map((s: any) => ({
               id: s.id || Math.random().toString(),
               recipeId: newRecipe.id,
@@ -60,30 +55,19 @@ export function LiveSessionClient() {
               isInterruptible: s.is_interruptible
           }))
 
-          // 4. Merge pending + new tasks for rescheduling
-          // We need to call the Scheduler here. 
-          // Ideally, we should refactor Scheduler to accept "fixed start time" constraint.
-          // For MVP: We just append the new tasks to the end of the current timeline 
-          // OR we simple re-run schedule but shift the startTime by current elapsedSeconds.
-          
-          // Simple Strategy: Append new tasks to the "Pending" queue, sorted by their internal order
-          // And assign them to chefs greedily.
-          
-          // Actually, let's just add them as pending tasks with a naive start time (now)
-          // The existing "Force Active" and "Dependency" logic will handle the execution flow.
-          // We just need to make sure they have valid resourceIds.
-          
+          // 2. Append new tasks to pending queue
+          // We use prev.elapsedSeconds as the baseline start time, effectively appending them "now"
           const newLiveTasks = newSteps.map((s: any, idx: number) => ({
               step: s,
-              startTime: prev.elapsedSeconds, // Nominally start now
+              startTime: prev.elapsedSeconds, 
               endTime: prev.elapsedSeconds + s.duration,
-              lane: 'chef', // Default lane
-              resourceId: 'chef_1', // Default to main chef for now
+              lane: 'chef', 
+              resourceId: 'chef_1', // Default to main chef
               status: 'pending',
               runtimeId: `new_task_${Date.now()}_${idx}`
           }))
 
-          // 5. Return updated state
+          // 3. Return updated state
           setIsAddingDish(false)
           return {
               ...prev,
@@ -91,6 +75,8 @@ export function LiveSessionClient() {
           }
       })
   }
+
+  // 3. Task Resolver (The Brain)
 
   return (
     <div className="h-screen flex flex-col bg-[var(--color-page)] relative">
