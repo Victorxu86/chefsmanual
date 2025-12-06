@@ -7,7 +7,7 @@ import { ArrowLeft, Play, Pause, CheckCircle, AlertCircle, Clock, Flame, User, C
 
 // ... (Existing imports)
 
-import { useMemo } from "react"
+import { useMemo, useCallback } from "react"
 import { createClient } from "@/utils/supabase/client"
 
 // ... (State Models)
@@ -38,9 +38,7 @@ export function LiveSessionClient() {
       }
   }, [isAddingDish])
 
-  const handleAddDish = (newRecipe: any) => {
-      // The function body here is causing issues potentially due to complex closure or state access
-      // Let's use the functional update form with explicit return
+  const handleAddDish = useCallback((newRecipe: any) => {
       setLiveState((prev) => {
           // 1. Create new tasks from new recipe
           const newSteps = newRecipe.recipe_steps.map((s: any) => ({
@@ -74,7 +72,7 @@ export function LiveSessionClient() {
               tasks: [...prev.tasks, ...newLiveTasks]
           }
       })
-  }
+  }, [])
 
   // 3. Task Resolver (The Brain)
 
