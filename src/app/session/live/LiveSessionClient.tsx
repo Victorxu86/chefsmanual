@@ -38,9 +38,10 @@ export function LiveSessionClient() {
       }
   }, [isAddingDish])
 
-  // Defined INSIDE the component body, within scope of setLiveState
   const handleAddDish = (newRecipe: any) => {
-      setLiveState(prev => {
+      // The function body here is causing issues potentially due to complex closure or state access
+      // Let's use the functional update form with explicit return
+      setLiveState((prev) => {
           // 1. Create new tasks from new recipe
           const newSteps = newRecipe.recipe_steps.map((s: any) => ({
               id: s.id || Math.random().toString(),
@@ -56,7 +57,6 @@ export function LiveSessionClient() {
           }))
 
           // 2. Append new tasks to pending queue
-          // We use prev.elapsedSeconds as the baseline start time, effectively appending them "now"
           const newLiveTasks = newSteps.map((s: any, idx: number) => ({
               step: s,
               startTime: prev.elapsedSeconds, 
