@@ -3,16 +3,50 @@
 import { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { ScheduledBlock } from "@/lib/scheduler"
-import { ArrowLeft, Play, Pause, CheckCircle, AlertCircle, Clock, Flame, User, ChefHat, ChevronLeft, ChevronRight, Plus } from "lucide-react"
+import { ArrowLeft, Play, Pause, CheckCircle, AlertCircle, Clock, Flame, User, ChefHat, ChevronLeft, ChevronRight, Plus, X } from "lucide-react"
 
 // ... (Existing imports)
 
 import { useMemo, useCallback } from "react"
 import { createClient } from "@/utils/supabase/client"
 
-// ... (State Models)
+// === State Models ===
+
+interface LiveTask extends ScheduledBlock {
+  status: 'pending' | 'active' | 'completed' | 'blocked'
+  runtimeId: string
+  actualStartTime?: number
+  actualEndTime?: number
+  forceActive?: boolean
+}
+
+interface ChefState {
+  id: string 
+  name: string
+  currentTaskId?: string
+  nextTaskId?: string
+}
+
+interface LiveSessionState {
+  tasks: LiveTask[]
+  chefs: ChefState[]
+  startTime?: number
+  elapsedSeconds: number
+  isPaused: boolean
+}
 
 export function LiveSessionClient() {
+  const router = useRouter()
+  const [sessionData, setSessionData] = useState<any>(null)
+  const [liveState, setLiveState] = useState<LiveSessionState>({
+    tasks: [],
+    chefs: [],
+    elapsedSeconds: 0,
+    isPaused: true
+  })
+  
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+
   // ... (Existing state)
   const [isAddingDish, setIsAddingDish] = useState(false)
   const [availableRecipes, setAvailableRecipes] = useState<any[]>([])
@@ -75,6 +109,8 @@ export function LiveSessionClient() {
   }, [])
 
   // 3. Task Resolver (The Brain)
+
+  const isSingleChef = liveState.chefs.length === 1
 
   return (
     <div className="h-screen flex flex-col bg-[var(--color-page)] relative">
