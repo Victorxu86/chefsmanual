@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { createAction, deleteAction, createCategory, updateCategory, deleteCategory, createMetadata, deleteMetadata } from "./actions"
-import { Trash2, Plus, Save, Activity, Layers, Tag, Settings, Sliders, Database, ChefHat, Scale, BarChart } from "lucide-react"
+import { createAction, updateAction, deleteAction, createCategory, updateCategory, deleteCategory, createMetadata, deleteMetadata } from "./actions"
+import { Trash2, Plus, Save, Activity, Layers, Tag, Settings, Sliders, Database, ChefHat, Scale, BarChart, X, Pencil } from "lucide-react"
 
 export function AdminDashboardClient({ 
     initialActions, 
@@ -57,6 +57,8 @@ export function AdminDashboardClient({
 // === Actions Panel (Granular) ===
 
 function ActionsPanel({ actions }: { actions: any[] }) {
+  const [editingAction, setEditingAction] = useState<any>(null)
+
   // Group by Category -> SubCategory
   const grouped = actions.reduce((acc: any, curr: any) => {
     if (!acc[curr.category]) acc[curr.category] = {}
@@ -67,7 +69,85 @@ function ActionsPanel({ actions }: { actions: any[] }) {
   }, {})
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative">
+      {/* Edit Modal Overlay */}
+      {editingAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                        <Pencil className="h-4 w-4 text-cyan-600" />
+                        编辑动作定义
+                    </h3>
+                    <button onClick={() => setEditingAction(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+                
+                <div className="p-6">
+                    <form action={async (formData) => { await updateAction(editingAction.id, null, formData); setEditingAction(null); }} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">大类 (Category)</label>
+                                <input name="category" defaultValue={editingAction.category} required className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm focus:outline-none focus:border-cyan-500 transition-colors" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">子类 (Sub)</label>
+                                <input name="subcategory" defaultValue={editingAction.subcategory} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm focus:outline-none focus:border-cyan-500 transition-colors" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">动作名称 (Label)</label>
+                            <input name="label" defaultValue={editingAction.label} required className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm focus:outline-none focus:border-cyan-500 transition-colors" />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">匹配关键词</label>
+                            <input name="keywords" defaultValue={editingAction.keywords.join(", ")} required className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm focus:outline-none focus:border-cyan-500 transition-colors" />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">算法类型</label>
+                                <select name="step_type" defaultValue={editingAction.step_type} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm focus:outline-none focus:border-cyan-500">
+                                    <option value="prep">备菜 (Prep)</option>
+                                    <option value="cook">烹饪 (Cook)</option>
+                                    <option value="wait">等待 (Wait)</option>
+                                    <option value="serve">装盘 (Serve)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">默认负载 (0-1)</label>
+                                <input name="default_load" type="number" step="0.05" max="1.0" min="0" defaultValue={editingAction.default_load} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm focus:outline-none focus:border-cyan-500" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">亲和力分组</label>
+                            <input name="affinity_group" defaultValue={editingAction.affinity_group || ""} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm focus:outline-none focus:border-cyan-500" />
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-2 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                            <input type="checkbox" name="is_active" id="edit_is_active" defaultChecked={editingAction.is_active} className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 h-4 w-4" />
+                            <label htmlFor="edit_is_active" className="text-sm font-medium text-slate-700 select-none cursor-pointer">需要人手持续参与 (Active)</label>
+                        </div>
+
+                        <div className="pt-4 flex gap-3">
+                            <button type="button" onClick={() => setEditingAction(null)} className="flex-1 py-3 rounded-lg border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors">
+                                取消
+                            </button>
+                            <button className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                                <Save className="h-4 w-4" />
+                                保存修改
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+      )}
+
       {/* List Column */}
       <div className="lg:col-span-2 space-y-8">
         {Object.entries(grouped).map(([category, subGroups]: [string, any]) => (
@@ -86,9 +166,9 @@ function ActionsPanel({ actions }: { actions: any[] }) {
                         <div className="space-y-1">
                             {items.map((action: any) => (
                                 <div key={action.id} className="bg-white p-3 rounded border border-slate-200 hover:border-cyan-200 transition-colors flex items-center justify-between group shadow-sm">
-                                    <div className="flex-1">
+                                    <div className="flex-1 cursor-pointer" onClick={() => setEditingAction(action)}>
                                         <div className="flex items-center gap-2 mb-1">
-                                            <span className="font-bold text-slate-800">{action.label}</span>
+                                            <span className="font-bold text-slate-800 group-hover:text-cyan-600 transition-colors">{action.label}</span>
                                             <span className={`text-[10px] px-1.5 py-0.5 rounded border font-bold ${
                                                 action.step_type === 'prep' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
                                                 action.step_type === 'cook' ? 'bg-orange-50 text-orange-600 border-orange-100' :
@@ -108,16 +188,26 @@ function ActionsPanel({ actions }: { actions: any[] }) {
                                             <span className="font-mono text-cyan-600">负载: {action.default_load}</span>
                                         </div>
                                     </div>
-                                    <button 
-                                        onClick={() => {
-                                            if (confirm(`确定要删除动作 "${action.label}" 吗?`)) {
-                                                deleteAction(action.id)
-                                            }
-                                        }}
-                                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-all opacity-0 group-hover:opacity-100"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button 
+                                            onClick={() => setEditingAction(action)}
+                                            className="p-2 text-slate-300 hover:text-cyan-500 hover:bg-cyan-50 rounded transition-all"
+                                            title="编辑"
+                                        >
+                                            <Pencil className="h-4 w-4" />
+                                        </button>
+                                        <button 
+                                            onClick={() => {
+                                                if (confirm(`确定要删除动作 "${action.label}" 吗?`)) {
+                                                    deleteAction(action.id)
+                                                }
+                                            }}
+                                            className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-all"
+                                            title="删除"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -236,7 +326,7 @@ function CategoriesPanel({ categories }: { categories: any[] }) {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">偏移 (秒)</label>
+                                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">偏移 (秒)</label>
                                         <input 
                                             name="offset" 
                                             type="number" 

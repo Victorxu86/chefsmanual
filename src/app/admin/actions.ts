@@ -70,6 +70,36 @@ export async function createAction(prevState: any, formData: FormData) {
   return { success: true }
 }
 
+export async function updateAction(id: string, prevState: any, formData: FormData) {
+    const supabase = await createClient()
+    
+    const label = formData.get("label") as string
+    const category = formData.get("category") as string
+    const subcategory = formData.get("subcategory") as string
+    const keywordsStr = formData.get("keywords") as string
+    const step_type = formData.get("step_type") as string
+    const default_load = parseFloat(formData.get("default_load") as string)
+    const is_active = formData.get("is_active") === "on"
+    const affinity_group = formData.get("affinity_group") as string || null
+  
+    const keywords = keywordsStr.split(",").map(k => k.trim()).filter(Boolean)
+  
+    const { error } = await supabase.from("sys_algorithm_actions").update({
+      label,
+      category,
+      subcategory,
+      keywords,
+      step_type,
+      default_load,
+      is_active,
+      affinity_group
+    }).eq("id", id)
+  
+    if (error) return { error: error.message }
+    revalidatePath("/admin")
+    return { success: true }
+}
+
 export async function deleteAction(id: string) {
   const supabase = await createClient()
   const { error } = await supabase.from("sys_algorithm_actions").delete().eq("id", id)
