@@ -252,7 +252,7 @@ export function MenuGeneratorClient({ recipes, userName }: MenuGeneratorClientPr
                     <div className="w-full pt-8 relative z-10" style={{ 
                         borderTop: '1px solid rgba(45, 52, 54, 0.1)',
                         display: 'flex',
-                        flexDirection: 'col',
+                        flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center'
                     }}>
