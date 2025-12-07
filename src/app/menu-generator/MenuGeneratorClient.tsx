@@ -237,14 +237,6 @@ export function MenuGeneratorClient({ recipes, userName }: MenuGeneratorClientPr
                                 position: 'absolute', bottom: '-4px', right: '-4px', width: '20px', height: '20px',
                                 borderBottom: '4px solid #2d3436', borderRight: '4px solid #2d3436'
                             }} />
-                            
-                            {/* Inner flourish (Dots) */}
-                            <div style={{
-                                position: 'absolute', top: '50%', left: '10px', right: '10px', height: '1px',
-                                backgroundImage: 'linear-gradient(to right, #2d3436 30%, rgba(255,255,255,0) 0%)',
-                                backgroundPosition: 'top', backgroundSize: '10px 1px', backgroundRepeat: 'repeat-x',
-                                opacity: 0.3
-                            }} />
                         </div>
                     </div>
 
