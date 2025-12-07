@@ -249,13 +249,26 @@ export function MenuGeneratorClient({ recipes, userName }: MenuGeneratorClientPr
                     </div>
 
                     {/* Footer */}
-                    <div className="w-full pt-8 relative z-10 flex flex-col items-center" style={{ borderTop: '1px solid rgba(45, 52, 54, 0.1)' }}>
+                    <div className="w-full pt-8 relative z-10" style={{ 
+                        borderTop: '1px solid rgba(45, 52, 54, 0.1)',
+                        display: 'flex',
+                        flexDirection: 'col',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }}>
                         <div className="text-[10px] uppercase tracking-[0.2em] font-bold mb-4" style={{ color: '#2d3436', opacity: 0.5 }}>
                             Curated by {userName}
                         </div>
                         
                         {/* Premium Branding */}
-                        <div className="flex items-center gap-2 px-4 py-2" style={{ border: '1px solid rgba(45, 52, 54, 0.2)', borderRadius: '4px' }}>
+                        <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '8px', 
+                            padding: '8px 16px', 
+                            border: '1px solid rgba(45, 52, 54, 0.2)', 
+                            borderRadius: '4px' 
+                        }}>
                             <ChefHat className="w-4 h-4" style={{ color: '#2d3436' }} />
                             <span className="font-serif font-bold tracking-widest text-xs uppercase" style={{ color: '#2d3436' }}>
                                 Chef's Manual
