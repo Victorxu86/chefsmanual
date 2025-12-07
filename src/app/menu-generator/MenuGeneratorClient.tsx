@@ -53,8 +53,12 @@ export function MenuGeneratorClient({ recipes, userName }: MenuGeneratorClientPr
         allowTaint: true,
         logging: true, // Enable logging to see errors in console
         onclone: (clonedDoc) => {
-            // Optional: Manipulate cloned DOM if needed
-            // e.g. clonedDoc.getElementById('preview-id').style.display = 'block';
+            // Fix vertical offset in html2canvas by manually adjusting the text position
+            const brandText = clonedDoc.getElementById('menu-brand-text')
+            if (brandText) {
+                brandText.style.position = 'relative'
+                brandText.style.top = '-2px' // Pull text up to correct canvas rendering offset
+            }
         }
       })
 
@@ -270,11 +274,10 @@ export function MenuGeneratorClient({ recipes, userName }: MenuGeneratorClientPr
                             borderRadius: '4px' 
                         }}>
                             <ChefHat className="w-4 h-4" style={{ color: '#2d3436', display: 'block' }} />
-                            <span className="font-serif font-bold tracking-widest text-xs uppercase" style={{ 
+                            <span id="menu-brand-text" className="font-serif font-bold tracking-widest text-xs uppercase" style={{ 
                                 color: '#2d3436',
                                 lineHeight: '1',
-                                display: 'block',
-                                paddingTop: '1px' 
+                                display: 'block'
                             }}>
                                 Chef's Manual
                             </span>
