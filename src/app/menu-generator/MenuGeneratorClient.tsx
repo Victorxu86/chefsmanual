@@ -216,18 +216,18 @@ export function MenuGeneratorClient({ recipes, userName }: MenuGeneratorClientPr
 
                     {/* Header */}
                     <div className="w-full relative z-10">
-                        <div className="w-12 h-12 mx-auto mb-4 text-[#2d3436] opacity-80">
+                        <div className="w-12 h-12 mx-auto mb-4" style={{ color: '#2d3436', opacity: 0.8 }}>
                             <ChefHat className="w-full h-full" strokeWidth={1.5} />
                         </div>
-                        <h2 className="text-3xl font-serif font-bold tracking-wider mb-2 uppercase">
+                        <h2 className="text-3xl font-serif font-bold tracking-wider mb-2 uppercase" style={{ color: '#2d3436' }}>
                             {menuTitle || "MENU"}
                         </h2>
                         {guestName && (
-                            <p className="text-sm font-serif italic opacity-60">
+                            <p className="text-sm font-serif italic" style={{ color: '#2d3436', opacity: 0.6 }}>
                                 {guestName}
                             </p>
                         )}
-                        <div className="w-16 h-px bg-[#2d3436] mx-auto mt-6 opacity-20" />
+                        <div className="w-16 h-px mx-auto mt-6" style={{ backgroundColor: '#2d3436', opacity: 0.2 }} />
                     </div>
 
                     {/* Menu Items */}
@@ -235,25 +235,25 @@ export function MenuGeneratorClient({ recipes, userName }: MenuGeneratorClientPr
                         {selectedRecipes.length > 0 ? (
                             selectedRecipes.map((recipe, index) => (
                                 <div key={recipe.id} className="w-full">
-                                    <h4 className="text-xl font-serif font-medium mb-1 tracking-wide">
+                                    <h4 className="text-xl font-serif font-medium mb-1 tracking-wide" style={{ color: '#2d3436' }}>
                                         {recipe.title}
                                     </h4>
-                                    <p className="text-xs uppercase tracking-widest opacity-50 font-sans">
+                                    <p className="text-xs uppercase tracking-widest font-sans" style={{ color: '#2d3436', opacity: 0.5 }}>
                                         {recipe.category || 'Special'} • {recipe.cuisine || 'Fusion'}
                                     </p>
                                 </div>
                             ))
                         ) : (
-                            <div className="text-gray-300 italic">请选择左侧菜品...</div>
+                            <div className="italic" style={{ color: '#b2bec3' }}>请选择左侧菜品...</div>
                         )}
                     </div>
 
                     {/* Footer */}
-                    <div className="w-full pt-6 border-t border-[#2d3436]/10 relative z-10">
-                        <div className="text-[10px] uppercase tracking-[0.2em] opacity-40 font-bold mb-1">
+                    <div className="w-full pt-6 border-t relative z-10" style={{ borderColor: 'rgba(45, 52, 54, 0.1)' }}>
+                        <div className="text-[10px] uppercase tracking-[0.2em] font-bold mb-1" style={{ color: '#2d3436', opacity: 0.4 }}>
                             Curated by {userName}
                         </div>
-                        <div className="text-[8px] opacity-30 font-mono">
+                        <div className="text-[8px] font-mono" style={{ color: '#2d3436', opacity: 0.3 }}>
                             Generated via ChefsManual
                         </div>
                     </div>
