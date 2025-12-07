@@ -212,17 +212,41 @@ export function MenuGeneratorClient({ recipes, userName }: MenuGeneratorClientPr
                         color: '#2d3436'
                     }}
                 >
-                    {/* Decorative Border - Art Deco Style */}
-                    <div className="absolute inset-3 pointer-events-none" 
-                         style={{ border: '1px solid rgba(45, 52, 54, 0.15)' }} />
-                    <div className="absolute inset-5 pointer-events-none" 
-                         style={{ border: '2px solid rgba(45, 52, 54, 0.8)' }} />
-                    
-                    {/* Corner Accents */}
-                    <div className="absolute top-5 left-5 w-2 h-2 bg-[#2d3436] pointer-events-none" />
-                    <div className="absolute top-5 right-5 w-2 h-2 bg-[#2d3436] pointer-events-none" />
-                    <div className="absolute bottom-5 left-5 w-2 h-2 bg-[#2d3436] pointer-events-none" />
-                    <div className="absolute bottom-5 right-5 w-2 h-2 bg-[#2d3436] pointer-events-none" />
+                    {/* Vintage Art Frame */}
+                    <div className="absolute inset-0 pointer-events-none" style={{ padding: '20px' }}>
+                        {/* Inner detailed border */}
+                        <div className="w-full h-full" style={{ 
+                            border: '3px double #2d3436', 
+                            opacity: 0.8,
+                            position: 'relative'
+                        }}>
+                            {/* Corner Ornaments (CSS Shapes) */}
+                            <div style={{
+                                position: 'absolute', top: '-4px', left: '-4px', width: '20px', height: '20px',
+                                borderTop: '4px solid #2d3436', borderLeft: '4px solid #2d3436'
+                            }} />
+                            <div style={{
+                                position: 'absolute', top: '-4px', right: '-4px', width: '20px', height: '20px',
+                                borderTop: '4px solid #2d3436', borderRight: '4px solid #2d3436'
+                            }} />
+                            <div style={{
+                                position: 'absolute', bottom: '-4px', left: '-4px', width: '20px', height: '20px',
+                                borderBottom: '4px solid #2d3436', borderLeft: '4px solid #2d3436'
+                            }} />
+                            <div style={{
+                                position: 'absolute', bottom: '-4px', right: '-4px', width: '20px', height: '20px',
+                                borderBottom: '4px solid #2d3436', borderRight: '4px solid #2d3436'
+                            }} />
+                            
+                            {/* Inner flourish (Dots) */}
+                            <div style={{
+                                position: 'absolute', top: '50%', left: '10px', right: '10px', height: '1px',
+                                backgroundImage: 'linear-gradient(to right, #2d3436 30%, rgba(255,255,255,0) 0%)',
+                                backgroundPosition: 'top', backgroundSize: '10px 1px', backgroundRepeat: 'repeat-x',
+                                opacity: 0.3
+                            }} />
+                        </div>
+                    </div>
 
                     {/* Header */}
                     <div className="w-full relative z-10">
@@ -266,28 +290,17 @@ export function MenuGeneratorClient({ recipes, userName }: MenuGeneratorClientPr
                         alignItems: 'center',
                         justifyContent: 'center'
                     }}>
-                        <div className="text-[10px] uppercase tracking-[0.2em] font-bold mb-4" style={{ color: '#2d3436', opacity: 0.5 }}>
+                        <div className="text-[10px] uppercase tracking-[0.2em] font-bold mb-6" style={{ color: '#2d3436', opacity: 0.5 }}>
                             Curated by {userName}
                         </div>
                         
-                        {/* Premium Branding */}
-                        <div style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '8px', 
-                            padding: '8px 16px', 
-                            border: '1px solid rgba(45, 52, 54, 0.2)', 
-                            borderRadius: '4px' 
+                        {/* Minimalist Brand Text */}
+                        <span id="menu-brand-text" className="font-serif font-bold tracking-[0.3em] text-sm uppercase" style={{ 
+                            color: '#2d3436',
+                            opacity: 0.9
                         }}>
-                            <ChefHat className="w-4 h-4" style={{ color: '#2d3436', display: 'block' }} />
-                            <span id="menu-brand-text" className="font-serif font-bold tracking-widest text-xs uppercase" style={{ 
-                                color: '#2d3436',
-                                lineHeight: '1',
-                                display: 'block'
-                            }}>
-                                Chef's Manual
-                            </span>
-                        </div>
+                            CHEF'S MANUAL
+                        </span>
                     </div>
 
                 </div>
