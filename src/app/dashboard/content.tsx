@@ -1,17 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useMode } from "@/context/ModeContext"
-import { Plus, Clock, ChefHat, ArrowRight, Activity, Utensils } from "lucide-react"
-import { createClient } from "@/utils/supabase/client"
-
-interface CookingSession {
-  id: string
-  created_at: string
-  total_duration_seconds: number
-  recipes: any[]
-}
+import { Plus, Clock, ChefHat, ArrowRight, Activity, Utensils, History } from "lucide-react"
 
 interface Recipe {
   id: string
@@ -19,70 +10,26 @@ interface Recipe {
   updated_at: string
 }
 
-export function DashboardContent({ userName }: { userName: string }) {
+interface SessionActivity {
+  id: string
+  created_at: string
+  total_duration_seconds: number
+  recipe_count: number
+  recipe_titles: string[]
+}
+
+interface DashboardContentProps {
+  userName: string
+  stats: {
+    weeklyCount: number
+    totalSavedMinutes: number
+  }
+  recentRecipes: Recipe[]
+  recentActivity: SessionActivity[]
+}
+
+export function DashboardContent({ userName, stats, recentRecipes, recentActivity }: DashboardContentProps) {
   const { mode } = useMode()
-  const [recentSessions, setRecentSessions] = useState<CookingSession[]>([])
-  const [recentRecipes, setRecentRecipes] = useState<Recipe[]>([])
-  const [stats, setStats] = useState({
-    weeklyCount: 0,
-    totalSavedMinutes: 0
-  })
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      const supabase = createClient()
-      
-      // 1. Fetch Cooking Sessions
-      const { data: sessions } = await supabase
-        .from('cooking_sessions')
-        .select('*')
-        .order('created_at', { ascending: false })
-      
-      if (sessions) {
-        setRecentSessions(sessions)
-        
-        // Calculate Weekly Count
-        const now = new Date()
-        const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()))
-        startOfWeek.setHours(0, 0, 0, 0)
-        
-        const weekly = sessions.filter(s => new Date(s.created_at) >= startOfWeek)
-        
-        // Calculate Total Time Saved
-        // Logic: Compare total_duration_seconds (optimized) vs Sum of recipe original times
-        // For now, since we don't store original sum in session, we'll simulate it or calculate from recipes if available
-        // Simplified logic: Assume scheduler saves 20% on average for >1 recipe
-        let savedSeconds = 0
-        sessions.forEach(s => {
-            if (s.recipes && Array.isArray(s.recipes) && s.recipes.length > 1) {
-                // Rough estimation: Parallelism saves time.
-                // Real saved time = (Sum of individual recipe times) - (Actual optimized duration)
-                // Since we only have actual duration here, let's assume a 15% efficiency gain as a placeholder metric
-                // In future, we should store 'original_estimated_duration' in the session table
-                savedSeconds += (s.total_duration_seconds || 0) * 0.2
-            }
-        })
-
-        setStats({
-            weeklyCount: weekly.length,
-            totalSavedMinutes: Math.round(savedSeconds / 60)
-        })
-      }
-
-      // 2. Fetch Recent Recipes
-      const { data: recipes } = await supabase
-        .from('recipes')
-        .select('id, title, updated_at')
-        .order('updated_at', { ascending: false })
-        .limit(3)
-        
-      if (recipes) {
-        setRecentRecipes(recipes)
-      }
-    }
-
-    fetchStats()
-  }, [])
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -137,15 +84,15 @@ export function DashboardContent({ userName }: { userName: string }) {
           </div>
         </div>
 
-        {/* Card 2: Recent Activity */}
+        {/* Card 2: Weekly Activity */}
         <div className="col-span-1 md:col-span-1 row-span-1 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] p-6 hover:border-[var(--color-accent)] transition-colors duration-300">
           <div className="flex items-center justify-between mb-4">
             <Activity className="h-5 w-5 text-[var(--color-muted)]" />
-            <span className="text-xs font-mono text-[var(--color-muted)]">STATUS</span>
+            <span className="text-xs font-mono text-[var(--color-muted)]">WEEKLY_STATS</span>
           </div>
           <div className="text-3xl font-mono font-bold text-[var(--color-main)] mb-1">{stats.weeklyCount}</div>
           <div className="text-sm text-[var(--color-muted)]">
-            {mode === "personal" ? "本周烹饪次数" : "Cycle Count"}
+            {mode === "personal" ? "本周烹饪完成" : "Completed Cycles"}
           </div>
         </div>
 
@@ -154,14 +101,14 @@ export function DashboardContent({ userName }: { userName: string }) {
           <div className="absolute top-0 right-0 p-32 bg-[var(--color-accent)] blur-[60px] opacity-20 rounded-full translate-x-10 -translate-y-10" />
           <Clock className="h-6 w-6 mb-4 opacity-80" />
           <div>
-            <div className="text-sm opacity-60 mb-1">Total Time Saved</div>
+            <div className="text-sm opacity-60 mb-1">{mode === "personal" ? "累计节省时间" : "TOTAL_TIME_SAVED"}</div>
             <div className="text-2xl font-mono font-bold">
                 {Math.floor(stats.totalSavedMinutes / 60)}h {stats.totalSavedMinutes % 60}m
             </div>
           </div>
         </div>
 
-        {/* Card 4: Recipe Stats */}
+        {/* Card 4: Recent Recipes */}
         <div className="col-span-1 md:col-span-2 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
@@ -178,7 +125,7 @@ export function DashboardContent({ userName }: { userName: string }) {
           {recentRecipes.length > 0 ? (
              <div className="space-y-3">
                 {recentRecipes.map(recipe => (
-                    <Link key={recipe.id} href={`/recipes/${recipe.id}`} className="flex items-center justify-between p-3 rounded-lg hover:bg-[var(--color-page)] transition-colors group">
+                    <Link key={recipe.id} href={`/recipes/${recipe.id}/edit`} className="flex items-center justify-between p-3 rounded-lg hover:bg-[var(--color-page)] transition-colors group">
                         <span className="font-medium text-[var(--color-main)] group-hover:text-[var(--color-accent)] transition-colors">{recipe.title}</span>
                         <span className="text-xs text-[var(--color-muted)]">{new Date(recipe.updated_at).toLocaleDateString()}</span>
                     </Link>
@@ -193,6 +140,44 @@ export function DashboardContent({ userName }: { userName: string }) {
             </div>
           )}
         </div>
+
+        {/* Card 5: Recent Sessions (History) */}
+        <div className="col-span-1 md:col-span-2 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <History className="h-5 w-5 text-[var(--color-muted)]" />
+              <h4 className="font-bold text-[var(--color-main)]">
+                {mode === "personal" ? "烹饪历史" : "SESSION_LOGS"}
+              </h4>
+            </div>
+          </div>
+
+          {recentActivity.length > 0 ? (
+             <div className="space-y-3">
+                {recentActivity.map(session => (
+                    <div key={session.id} className="flex items-center justify-between p-3 rounded-lg bg-[var(--color-page)]/50 border border-[var(--color-border-theme)]/50">
+                        <div>
+                            <div className="font-medium text-[var(--color-main)] text-sm">
+                                {session.recipe_titles.join(", ")}
+                                {session.recipe_count > 2 && ` +${session.recipe_count - 2}`}
+                            </div>
+                            <div className="text-xs text-[var(--color-muted)] mt-1">
+                                {new Date(session.created_at).toLocaleDateString()} • {Math.round(session.total_duration_seconds / 60)} min
+                            </div>
+                        </div>
+                        <Link href={`/session/complete?session_id=${session.id}`} className="p-2 rounded-full hover:bg-[var(--color-accent)]/10 text-[var(--color-accent)] transition-colors">
+                            <ArrowRight className="h-4 w-4" />
+                        </Link>
+                    </div>
+                ))}
+             </div>
+          ) : (
+            <div className="text-center py-4 text-[var(--color-muted)] text-sm">
+                暂无记录
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   )
