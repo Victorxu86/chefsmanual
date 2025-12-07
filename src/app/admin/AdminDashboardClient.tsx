@@ -188,7 +188,13 @@ function CategoriesPanel({ categories }: { categories: any[] }) {
                 
                 <div className="divide-y divide-slate-100">
                     {categories.map((cat: any) => (
-                        <form key={cat.id} action={updateCategory.bind(null, cat.id)} className="p-6 hover:bg-slate-50 transition-colors grid grid-cols-12 gap-6 items-center">
+                        <form 
+                            key={cat.id} 
+                            action={async (formData) => {
+                                await updateCategory(cat.id, formData)
+                            }} 
+                            className="p-6 hover:bg-slate-50 transition-colors grid grid-cols-12 gap-6 items-center"
+                        >
                             {/* Label */}
                             <div className="col-span-4">
                                 <div className="font-bold text-slate-900 text-lg">{cat.label}</div>
