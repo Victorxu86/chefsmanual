@@ -10,7 +10,7 @@ const COOKIE_NAME = "chefs_admin_session"
 
 // === Authentication ===
 
-export async function adminLogin(formData: FormData) {
+export async function adminLogin(prevState: any, formData: FormData) {
   const password = formData.get("password") as string
   
   if (password === ADMIN_PASSWORD) {
