@@ -269,8 +269,13 @@ export function MenuGeneratorClient({ recipes, userName }: MenuGeneratorClientPr
                             border: '1px solid rgba(45, 52, 54, 0.2)', 
                             borderRadius: '4px' 
                         }}>
-                            <ChefHat className="w-4 h-4" style={{ color: '#2d3436' }} />
-                            <span className="font-serif font-bold tracking-widest text-xs uppercase" style={{ color: '#2d3436' }}>
+                            <ChefHat className="w-4 h-4" style={{ color: '#2d3436', display: 'block' }} />
+                            <span className="font-serif font-bold tracking-widest text-xs uppercase" style={{ 
+                                color: '#2d3436',
+                                lineHeight: '1',
+                                display: 'block',
+                                paddingTop: '1px' 
+                            }}>
                                 Chef's Manual
                             </span>
                         </div>
