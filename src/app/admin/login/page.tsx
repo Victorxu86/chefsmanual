@@ -14,8 +14,8 @@ export default function AdminLogin() {
           <div className="mx-auto w-12 h-12 bg-cyan-500/10 rounded-full flex items-center justify-center mb-4">
             <ShieldCheck className="h-6 w-6 text-cyan-400" />
           </div>
-          <h1 className="text-xl font-bold text-white tracking-wider">SYSTEM CONFIG</h1>
-          <p className="text-slate-400 text-xs uppercase tracking-widest mt-1">Authorized Personnel Only</p>
+          <h1 className="text-xl font-bold text-white tracking-wider">系统配置终端</h1>
+          <p className="text-slate-400 text-xs uppercase tracking-widest mt-1">仅限授权人员访问</p>
         </div>
 
         <form action={formAction} className="space-y-4">
@@ -23,7 +23,7 @@ export default function AdminLogin() {
             <input 
               name="password" 
               type="password" 
-              placeholder="ACCESS CODE" 
+              placeholder="请输入访问代码" 
               className="w-full bg-slate-900 border border-slate-700 text-center text-white font-mono tracking-[0.5em] py-3 rounded focus:outline-none focus:border-cyan-500 transition-colors placeholder:tracking-normal placeholder:font-sans"
               autoFocus
             />
@@ -37,11 +37,10 @@ export default function AdminLogin() {
             disabled={isPending}
             className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded transition-colors disabled:opacity-50"
           >
-            {isPending ? "VERIFYING..." : "UNLOCK TERMINAL"}
+            {isPending ? "验证中..." : "解锁终端"}
           </button>
         </form>
       </div>
     </div>
   )
 }
-

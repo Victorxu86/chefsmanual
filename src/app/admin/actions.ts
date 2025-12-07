@@ -15,7 +15,6 @@ export async function adminLogin(prevState: any, formData: FormData) {
   
   if (password === ADMIN_PASSWORD) {
     const cookieStore = await cookies()
-    // Set cookie for 1 day
     cookieStore.set(COOKIE_NAME, "authenticated", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -24,7 +23,7 @@ export async function adminLogin(prevState: any, formData: FormData) {
     })
     redirect("/admin")
   } else {
-    return { error: "Invalid Access Code" }
+    return { error: "访问密码错误" }
   }
 }
 
@@ -45,6 +44,8 @@ export async function createAction(prevState: any, formData: FormData) {
   const supabase = await createClient()
   
   const label = formData.get("label") as string
+  const category = formData.get("category") as string
+  const subcategory = formData.get("subcategory") as string
   const keywordsStr = formData.get("keywords") as string
   const step_type = formData.get("step_type") as string
   const default_load = parseFloat(formData.get("default_load") as string)
@@ -55,6 +56,8 @@ export async function createAction(prevState: any, formData: FormData) {
 
   const { error } = await supabase.from("sys_algorithm_actions").insert({
     label,
+    category,
+    subcategory,
     keywords,
     step_type,
     default_load,
@@ -76,9 +79,27 @@ export async function deleteAction(id: string) {
 
 // === CRUD Actions: Dish Categories ===
 
+export async function createCategory(prevState: any, formData: FormData) {
+    const supabase = await createClient()
+    const label = formData.get("label") as string
+    const slug = formData.get("slug") as string
+    const priority = parseInt(formData.get("priority") as string)
+    const offset = parseInt(formData.get("offset") as string)
+
+    const { error } = await supabase.from("sys_dish_categories").insert({
+        label,
+        slug,
+        schedule_priority: priority,
+        end_time_offset: offset
+    })
+
+    if (error) return { error: error.message }
+    revalidatePath("/admin")
+    return { success: true }
+}
+
 export async function updateCategory(id: string, formData: FormData) {
     const supabase = await createClient()
-    
     const priority = parseInt(formData.get("priority") as string)
     const offset = parseInt(formData.get("offset") as string)
     
@@ -92,3 +113,46 @@ export async function updateCategory(id: string, formData: FormData) {
     return { success: true }
 }
 
+export async function deleteCategory(id: string) {
+    const supabase = await createClient()
+    const { error } = await supabase.from("sys_dish_categories").delete().eq("id", id)
+    if (error) throw error
+    revalidatePath("/admin")
+}
+
+// === CRUD Actions: Metadata (Units, Cuisines, Difficulty) ===
+
+export async function createMetadata(type: 'unit' | 'cuisine' | 'difficulty', prevState: any, formData: FormData) {
+    const supabase = await createClient()
+    const label = formData.get("label") as string
+    
+    let error = null
+    
+    if (type === 'unit') {
+        const unitType = formData.get("type") as string
+        const res = await supabase.from("sys_measurement_units").insert({ label, type: unitType })
+        error = res.error
+    } else if (type === 'cuisine') {
+        const res = await supabase.from("sys_cuisines").insert({ label })
+        error = res.error
+    } else if (type === 'difficulty') {
+        const level = parseInt(formData.get("level") as string)
+        const res = await supabase.from("sys_difficulty_levels").insert({ label, level_value: level })
+        error = res.error
+    }
+
+    if (error) return { error: error.message }
+    revalidatePath("/admin")
+    return { success: true }
+}
+
+export async function deleteMetadata(type: 'unit' | 'cuisine' | 'difficulty', id: string) {
+    const supabase = await createClient()
+    const table = type === 'unit' ? 'sys_measurement_units' 
+        : type === 'cuisine' ? 'sys_cuisines' 
+        : 'sys_difficulty_levels'
+        
+    const { error } = await supabase.from(table).delete().eq("id", id)
+    if (error) throw error
+    revalidatePath("/admin")
+}
