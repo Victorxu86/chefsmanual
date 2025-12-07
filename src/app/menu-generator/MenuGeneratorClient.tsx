@@ -280,19 +280,20 @@ export function MenuGeneratorClient({ recipes, userName }: MenuGeneratorClientPr
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
-                        justifyContent: 'center'
+                        justifyContent: 'center',
+                        gap: '12px'
                     }}>
-                        <div className="text-[10px] uppercase tracking-[0.2em] font-bold mb-6" style={{ color: '#2d3436', opacity: 0.5 }}>
-                            Curated by {userName}
-                        </div>
-                        
-                        {/* Minimalist Brand Text */}
+                        {/* Minimalist Brand Text (Now on Top) */}
                         <span id="menu-brand-text" className="font-serif font-bold tracking-[0.3em] text-sm uppercase" style={{ 
                             color: '#2d3436',
                             opacity: 0.9
                         }}>
                             CHEF'S MANUAL
                         </span>
+
+                        <div className="text-[10px] uppercase tracking-[0.2em] font-bold" style={{ color: '#2d3436', opacity: 0.5 }}>
+                            Curated by {userName}
+                        </div>
                     </div>
 
                 </div>
