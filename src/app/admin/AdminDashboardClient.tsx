@@ -117,7 +117,13 @@ function ActionsPanel({ actions }: { actions: any[] }) {
              <h2 className="font-bold">Define New Action</h2>
           </div>
           
-          <form action={createAction} className="space-y-4">
+          <form 
+            action={async (formData) => {
+              await createAction(null, formData)
+              setIsCreating(false) // Optional: reset UI state if needed
+            }} 
+            className="space-y-4"
+          >
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Label</label>
               <input name="label" required placeholder="e.g. 慢炖" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm focus:outline-none focus:border-cyan-500 transition-colors" />
