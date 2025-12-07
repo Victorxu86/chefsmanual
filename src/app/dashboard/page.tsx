@@ -48,10 +48,10 @@ export default async function DashboardPage() {
     // B. Fetch recent recipes
     supabase
       .from('recipes')
-      .select('id, title, updated_at')
+      .select('id, title, updated_at, cuisine, category, total_time_minutes')
       .eq('author_id', user.id)
       .order('updated_at', { ascending: false })
-      .limit(5)
+      .limit(3)
   ])
 
   const sessions = sessionsRes.data || []
@@ -97,6 +97,38 @@ export default async function DashboardPage() {
     recipe_titles: Array.isArray(s.recipes) ? s.recipes.map((r: any) => r.title).slice(0, 2) : []
   }))
 
+  // D. Generate Recipe Recommendations (Server Side Logic)
+  // Logic: Find recipes that complement the recent ones or popular combinations
+  // For now, simple logic: Pick 3 recipes from different categories (e.g. 1 main, 1 soup, 1 cold)
+  // If not enough recipes, pick random.
+  
+  // Fetch all recipes (lightweight) for recommendation
+  const { data: allRecipes } = await supabase
+    .from('recipes')
+    .select('id, title, category, total_time_minutes')
+    .eq('author_id', user.id)
+  
+  let recommendations: any[] = []
+  
+  if (allRecipes && allRecipes.length >= 2) {
+      // Strategy: "Balanced Meal"
+      // Try to find: Main + Soup + (Side/Cold/Dessert)
+      const mains = allRecipes.filter(r => r.category === 'main' || !r.category)
+      const soups = allRecipes.filter(r => r.category === 'soup')
+      const sides = allRecipes.filter(r => ['cold', 'dessert', 'side'].includes(r.category || ''))
+      
+      const r1 = mains.length > 0 ? mains[Math.floor(Math.random() * mains.length)] : allRecipes[0]
+      // Ensure r2 is different from r1
+      const availableForR2 = soups.length > 0 ? soups : allRecipes.filter(r => r.id !== r1.id)
+      const r2 = availableForR2.length > 0 ? availableForR2[Math.floor(Math.random() * availableForR2.length)] : null
+      
+      // Ensure r3 is different from r1 and r2
+      const availableForR3 = sides.length > 0 ? sides : allRecipes.filter(r => r.id !== r1.id && (r2 ? r.id !== r2.id : true))
+      const r3 = availableForR3.length > 0 ? availableForR3[Math.floor(Math.random() * availableForR3.length)] : null
+
+      recommendations = [r1, r2, r3].filter(Boolean)
+  }
+
   return (
     <div className="min-h-screen bg-[var(--color-page)] transition-colors duration-700">
       <DashboardHeader userEmail={user.email || ""} />
@@ -109,6 +141,7 @@ export default async function DashboardPage() {
           }}
           recentRecipes={recentRecipes}
           recentActivity={recentActivity}
+          recommendations={recommendations}
         />
       </main>
     </div>
