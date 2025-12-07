@@ -147,7 +147,70 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
           </Link>
         </div>
 
-        {/* Card 6: Smart Recommendations (Moved next to Recipes and size increased) */}
+        {/* Card 5: Session Logs (History) */}
+        <div className="col-span-1 md:col-span-1 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <History className="h-5 w-5 text-[var(--color-muted)]" />
+              <h4 className="font-bold text-[var(--color-main)]">
+                {mode === "personal" ? "烹饪历史" : "SESSION_LOGS"}
+              </h4>
+            </div>
+          </div>
+
+          {recentActivity.length > 0 ? (
+             <div className="space-y-3">
+                {recentActivity.slice(0, 2).map(session => (
+                    <div key={session.id} className="flex items-center justify-between p-3 rounded-lg bg-[var(--color-page)]/50 border border-[var(--color-border-theme)]/50">
+                        <div>
+                            <div className="font-medium text-[var(--color-main)] text-sm line-clamp-1">
+                                {session.recipe_titles.join(", ")}
+                                {session.recipe_count > 2 && ` +${session.recipe_count - 2}`}
+                            </div>
+                            <div className="text-xs text-[var(--color-muted)] mt-1">
+                                {new Date(session.created_at).toLocaleDateString()}
+                            </div>
+                        </div>
+                        <Link href={`/session/complete?session_id=${session.id}`} className="p-2 rounded-full hover:bg-[var(--color-accent)]/10 text-[var(--color-accent)] transition-colors">
+                            <ArrowRight className="h-4 w-4" />
+                        </Link>
+                    </div>
+                ))}
+             </div>
+          ) : (
+            <div className="text-center py-4 text-[var(--color-muted)] text-sm">
+                暂无记录
+            </div>
+          )}
+        </div>
+
+        {/* Card 7: Menu Generator (Moved to bottom right, next to History) */}
+        <div className="col-span-1 md:col-span-1 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] p-6 relative overflow-hidden group hover:border-[var(--color-accent)] transition-colors flex flex-col justify-between">
+            <div>
+                <div className="flex items-center gap-2 mb-4">
+                    <div className="p-2 rounded-lg bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+                        <Sparkles className="h-5 w-5" />
+                    </div>
+                    <h4 className="font-bold text-[var(--color-main)]">
+                        {mode === "personal" ? "菜单生成器" : "MENU_ASSET_GEN"}
+                    </h4>
+                </div>
+                
+                <p className="text-sm text-[var(--color-muted)] mb-6">
+                    {mode === "personal" ? "为您的晚宴定制专属精美菜单图片。" : "Generate printable menu assets for distribution."}
+                </p>
+            </div>
+
+            <Link 
+                href="/menu-generator"
+                className="w-full py-2.5 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-main)] text-[var(--color-main)] font-bold flex items-center justify-center gap-2 hover:bg-[var(--color-main)] hover:text-[var(--color-page)] transition-all"
+            >
+                去生成
+                <ArrowRight className="h-4 w-4" />
+            </Link>
+        </div>
+
+        {/* Card 6: Smart Recommendations (NEW) */}
         <div className="col-span-1 md:col-span-2 rounded-[var(--radius-theme)] bg-gradient-to-br from-[var(--color-card)] to-[var(--color-accent-light)]/10 border border-[var(--color-border-theme)] p-6 relative overflow-hidden flex flex-col justify-between">
           <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--color-accent)]/5 rounded-full blur-2xl -translate-y-10 translate-x-10" />
           
@@ -191,69 +254,6 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
                 <ArrowRight className="h-4 w-4" />
             </Link>
           )}
-        </div>
-
-        {/* Card 5: Session Logs (History) */}
-        <div className="col-span-1 md:col-span-2 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <History className="h-5 w-5 text-[var(--color-muted)]" />
-              <h4 className="font-bold text-[var(--color-main)]">
-                {mode === "personal" ? "烹饪历史" : "SESSION_LOGS"}
-              </h4>
-            </div>
-          </div>
-
-          {recentActivity.length > 0 ? (
-             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {recentActivity.map(session => (
-                    <div key={session.id} className="flex items-center justify-between p-3 rounded-lg bg-[var(--color-page)]/50 border border-[var(--color-border-theme)]/50">
-                        <div>
-                            <div className="font-medium text-[var(--color-main)] text-sm line-clamp-1">
-                                {session.recipe_titles.join(", ")}
-                                {session.recipe_count > 2 && ` +${session.recipe_count - 2}`}
-                            </div>
-                            <div className="text-xs text-[var(--color-muted)] mt-1">
-                                {new Date(session.created_at).toLocaleDateString()}
-                            </div>
-                        </div>
-                        <Link href={`/session/complete?session_id=${session.id}`} className="p-2 rounded-full hover:bg-[var(--color-accent)]/10 text-[var(--color-accent)] transition-colors">
-                            <ArrowRight className="h-4 w-4" />
-                        </Link>
-                    </div>
-                ))}
-             </div>
-          ) : (
-            <div className="text-center py-4 text-[var(--color-muted)] text-sm">
-                暂无记录
-            </div>
-          )}
-        </div>
-
-        {/* Card 7: Menu Generator (Moved to bottom right, next to History) */}
-        <div className="col-span-1 md:col-span-2 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] p-6 relative overflow-hidden group hover:border-[var(--color-accent)] transition-colors flex flex-col justify-between">
-            <div>
-                <div className="flex items-center gap-2 mb-4">
-                    <div className="p-2 rounded-lg bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
-                        <Sparkles className="h-5 w-5" />
-                    </div>
-                    <h4 className="font-bold text-[var(--color-main)]">
-                        {mode === "personal" ? "菜单生成器" : "MENU_ASSET_GEN"}
-                    </h4>
-                </div>
-                
-                <p className="text-sm text-[var(--color-muted)] mb-6">
-                    {mode === "personal" ? "为您的晚宴定制专属精美菜单图片。" : "Generate printable menu assets for distribution."}
-                </p>
-            </div>
-
-            <Link 
-                href="/menu-generator"
-                className="w-full py-2.5 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-main)] text-[var(--color-main)] font-bold flex items-center justify-center gap-2 hover:bg-[var(--color-main)] hover:text-[var(--color-page)] transition-all"
-            >
-                去生成
-                <ArrowRight className="h-4 w-4" />
-            </Link>
         </div>
 
       </div>

@@ -209,8 +209,10 @@ export function MenuGeneratorClient({ recipes, userName }: MenuGeneratorClientPr
                     }}
                 >
                     {/* Decorative Border */}
-                    <div className="absolute inset-4 border-2 border-[#2d3436] opacity-10 pointer-events-none" />
-                    <div className="absolute inset-5 border border-[#2d3436] opacity-10 pointer-events-none" />
+                    <div className="absolute inset-4 border-2 border-[#2d3436] opacity-10 pointer-events-none" 
+                         style={{ borderColor: 'rgba(45, 52, 54, 0.1)' }} />
+                    <div className="absolute inset-5 border border-[#2d3436] opacity-10 pointer-events-none" 
+                         style={{ borderColor: 'rgba(45, 52, 54, 0.1)' }} />
 
                     {/* Header */}
                     <div className="w-full relative z-10">
