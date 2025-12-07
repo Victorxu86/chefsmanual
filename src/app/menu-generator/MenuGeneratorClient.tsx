@@ -39,23 +39,32 @@ export function MenuGeneratorClient({ recipes, userName }: MenuGeneratorClientPr
     setIsGenerating(true)
 
     try {
-      // Dynamic import to avoid SSR issues with html2canvas
-      const html2canvas = (await import('html2canvas')).default
+      // Robust dynamic import with fallback
+      const module = await import('html2canvas')
+      const html2canvas = module.default || module
+
+      // Wait a bit for fonts to load
+      await document.fonts.ready
       
       const canvas = await html2canvas(previewRef.current, {
         scale: 2, // High resolution
         backgroundColor: mode === 'business' ? '#000000' : '#ffffff',
         useCORS: true,
-        logging: false
+        allowTaint: true,
+        logging: true, // Enable logging to see errors in console
+        onclone: (clonedDoc) => {
+            // Optional: Manipulate cloned DOM if needed
+            // e.g. clonedDoc.getElementById('preview-id').style.display = 'block';
+        }
       })
 
       const link = document.createElement('a')
       link.download = `chefsmanual-menu-${Date.now()}.png`
       link.href = canvas.toDataURL('image/png')
       link.click()
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to generate image:", err)
-      alert("生成图片失败，请重试")
+      alert(`生成图片失败: ${err.message || "未知错误"}`)
     } finally {
       setIsGenerating(false)
     }

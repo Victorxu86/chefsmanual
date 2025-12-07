@@ -48,6 +48,15 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
               : "System operational. All units standby."}
           </p>
         </div>
+        <div className="flex gap-3">
+          <Link 
+            href="/create-recipe"
+            className="flex items-center gap-2 px-6 py-3 rounded-[var(--radius-theme)] bg-[var(--color-accent)] text-white font-bold shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
+          >
+            <Plus className="h-5 w-5" />
+            <span>{mode === "personal" ? "新建菜谱" : "NEW_SOP_ENTRY"}</span>
+          </Link>
+        </div>
       </div>
 
       {/* Bento Grid Layout */}
@@ -138,32 +147,54 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
           </Link>
         </div>
 
-        {/* Card 5: Menu Generator (NEW CARD) */}
-        <div className="col-span-1 md:col-span-1 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] p-6 relative overflow-hidden group hover:border-[var(--color-accent)] transition-colors">
-            <div className="flex items-center gap-2 mb-4">
-                <div className="p-2 rounded-lg bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
-                    <Sparkles className="h-5 w-5" />
-                </div>
+        {/* Card 6: Smart Recommendations (Moved next to Recipes and size increased) */}
+        <div className="col-span-1 md:col-span-2 rounded-[var(--radius-theme)] bg-gradient-to-br from-[var(--color-card)] to-[var(--color-accent-light)]/10 border border-[var(--color-border-theme)] p-6 relative overflow-hidden flex flex-col justify-between">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--color-accent)]/5 rounded-full blur-2xl -translate-y-10 translate-x-10" />
+          
+          <div>
+            <div className="flex items-center gap-2 mb-6 relative z-10">
+                <Sparkles className="h-5 w-5 text-[var(--color-accent)]" />
                 <h4 className="font-bold text-[var(--color-main)]">
-                    {mode === "personal" ? "菜单生成器" : "MENU_ASSET_GEN"}
+                {mode === "personal" ? "推荐组合" : "OPTIMIZED_SET"}
                 </h4>
             </div>
-            
-            <p className="text-sm text-[var(--color-muted)] mb-6 min-h-[40px]">
-                {mode === "personal" ? "为您的晚宴定制专属精美菜单图片。" : "Generate printable menu assets for distribution."}
-            </p>
 
-            <Link 
-                href="/menu-generator"
-                className="w-full py-2 rounded-[var(--radius-theme)] bg-[var(--color-main)] text-[var(--color-page)] text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+            {recommendations.length >= 2 ? (
+                <div className="relative z-10">
+                <div className="flex -space-x-3 mb-4 overflow-hidden py-1 pl-1">
+                    {recommendations.map((r, i) => (
+                        <div key={r.id} className="relative w-10 h-10 rounded-full bg-[var(--color-page)] border-2 border-[var(--color-card)] flex items-center justify-center text-xs font-bold text-[var(--color-main)] shadow-sm shrink-0" title={r.title}>
+                            {r.title.charAt(0)}
+                        </div>
+                    ))}
+                </div>
+                <p className="text-lg font-bold text-[var(--color-main)] mb-1">
+                    {recommendations.map(r => r.title).join(" + ")}
+                </p>
+                <p className="text-sm text-[var(--color-muted)] mb-4">
+                    预计耗时: {Math.max(...recommendations.map(r => r.total_time_minutes || 30))} 分钟 (智能并行)
+                </p>
+                </div>
+            ) : (
+                <div className="text-sm text-[var(--color-muted)] py-4 relative z-10">
+                    创建更多不同种类的菜谱 (主食、汤、凉菜)，解锁智能组合推荐。
+                </div>
+            )}
+          </div>
+              
+          {recommendations.length >= 2 && (
+             <Link 
+                href={`/session?recipes=${recommendations.map(r => r.id).join(',')}`}
+                className="w-full py-2.5 rounded-[var(--radius-theme)] bg-[var(--color-main)] text-[var(--color-page)] font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity relative z-10"
             >
-                去生成
-                <ArrowRight className="h-3 w-3" />
+                一键开始
+                <ArrowRight className="h-4 w-4" />
             </Link>
+          )}
         </div>
 
-        {/* Card 5: Recent Sessions (History) */}
-        <div className="col-span-1 md:col-span-2 lg:col-span-1 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] p-6">
+        {/* Card 5: Session Logs (History) */}
+        <div className="col-span-1 md:col-span-2 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <History className="h-5 w-5 text-[var(--color-muted)]" />
@@ -174,7 +205,7 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
           </div>
 
           {recentActivity.length > 0 ? (
-             <div className="space-y-3">
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {recentActivity.map(session => (
                     <div key={session.id} className="flex items-center justify-between p-3 rounded-lg bg-[var(--color-page)]/50 border border-[var(--color-border-theme)]/50">
                         <div>
@@ -199,46 +230,30 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
           )}
         </div>
 
-        {/* Card 6: Smart Recommendations (NEW) */}
-        <div className="col-span-1 md:col-span-3 lg:col-span-1 rounded-[var(--radius-theme)] bg-gradient-to-br from-[var(--color-card)] to-[var(--color-accent-light)]/10 border border-[var(--color-border-theme)] p-6 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--color-accent)]/5 rounded-full blur-2xl -translate-y-10 translate-x-10" />
-          
-          <div className="flex items-center gap-2 mb-6 relative z-10">
-            <Sparkles className="h-5 w-5 text-[var(--color-accent)]" />
-            <h4 className="font-bold text-[var(--color-main)]">
-              {mode === "personal" ? "推荐组合" : "OPTIMIZED_SET"}
-            </h4>
-          </div>
-
-          {recommendations.length >= 2 ? (
-            <div className="relative z-10">
-              <div className="flex -space-x-3 mb-4 overflow-hidden py-1 pl-1">
-                 {recommendations.map((r, i) => (
-                    <div key={r.id} className="relative w-10 h-10 rounded-full bg-[var(--color-page)] border-2 border-[var(--color-card)] flex items-center justify-center text-xs font-bold text-[var(--color-main)] shadow-sm shrink-0" title={r.title}>
-                        {r.title.charAt(0)}
+        {/* Card 7: Menu Generator (Moved to bottom right, next to History) */}
+        <div className="col-span-1 md:col-span-2 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] p-6 relative overflow-hidden group hover:border-[var(--color-accent)] transition-colors flex flex-col justify-between">
+            <div>
+                <div className="flex items-center gap-2 mb-4">
+                    <div className="p-2 rounded-lg bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+                        <Sparkles className="h-5 w-5" />
                     </div>
-                 ))}
-              </div>
-              <p className="text-sm font-medium text-[var(--color-main)] mb-1">
-                {recommendations.map(r => r.title).join(" + ")}
-              </p>
-              <p className="text-xs text-[var(--color-muted)] mb-4">
-                 预计耗时: {Math.max(...recommendations.map(r => r.total_time_minutes || 30))} 分钟 (并行后)
-              </p>
-              
-              <Link 
-                href={`/session?recipes=${recommendations.map(r => r.id).join(',')}`}
-                className="w-full py-2 rounded-[var(--radius-theme)] bg-[var(--color-main)] text-[var(--color-page)] text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-              >
-                一键开始
-                <ArrowRight className="h-3 w-3" />
-              </Link>
+                    <h4 className="font-bold text-[var(--color-main)]">
+                        {mode === "personal" ? "菜单生成器" : "MENU_ASSET_GEN"}
+                    </h4>
+                </div>
+                
+                <p className="text-sm text-[var(--color-muted)] mb-6">
+                    {mode === "personal" ? "为您的晚宴定制专属精美菜单图片。" : "Generate printable menu assets for distribution."}
+                </p>
             </div>
-          ) : (
-             <div className="text-sm text-[var(--color-muted)] py-4 relative z-10">
-                创建更多不同种类的菜谱 (主食、汤、凉菜)，解锁智能组合推荐。
-             </div>
-          )}
+
+            <Link 
+                href="/menu-generator"
+                className="w-full py-2.5 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-main)] text-[var(--color-main)] font-bold flex items-center justify-center gap-2 hover:bg-[var(--color-main)] hover:text-[var(--color-page)] transition-all"
+            >
+                去生成
+                <ArrowRight className="h-4 w-4" />
+            </Link>
         </div>
 
       </div>
