@@ -239,7 +239,7 @@ export function MenuGeneratorClient({ recipes, userName }: MenuGeneratorClientPr
                                         {recipe.title}
                                     </h4>
                                     <p className="text-xs uppercase tracking-widest font-sans" style={{ color: '#2d3436', opacity: 0.5 }}>
-                                        {recipe.category || 'Special'} • {recipe.cuisine || 'Fusion'}
+                                        {recipe.category || 'Special'}
                                     </p>
                                 </div>
                             ))
@@ -249,12 +249,17 @@ export function MenuGeneratorClient({ recipes, userName }: MenuGeneratorClientPr
                     </div>
 
                     {/* Footer */}
-                    <div className="w-full pt-6 border-t relative z-10" style={{ borderColor: 'rgba(45, 52, 54, 0.1)' }}>
-                        <div className="text-[10px] uppercase tracking-[0.2em] font-bold mb-1" style={{ color: '#2d3436', opacity: 0.4 }}>
+                    <div className="w-full pt-8 relative z-10 flex flex-col items-center" style={{ borderTop: '1px solid rgba(45, 52, 54, 0.1)' }}>
+                        <div className="text-[10px] uppercase tracking-[0.2em] font-bold mb-4" style={{ color: '#2d3436', opacity: 0.5 }}>
                             Curated by {userName}
                         </div>
-                        <div className="text-[8px] font-mono" style={{ color: '#2d3436', opacity: 0.3 }}>
-                            Generated via ChefsManual
+                        
+                        {/* Premium Branding */}
+                        <div className="flex items-center gap-2 px-4 py-2" style={{ border: '1px solid rgba(45, 52, 54, 0.2)', borderRadius: '4px' }}>
+                            <ChefHat className="w-4 h-4" style={{ color: '#2d3436' }} />
+                            <span className="font-serif font-bold tracking-widest text-xs uppercase" style={{ color: '#2d3436' }}>
+                                Chef's Manual
+                            </span>
                         </div>
                     </div>
 
