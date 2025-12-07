@@ -48,15 +48,6 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
               : "System operational. All units standby."}
           </p>
         </div>
-        <div className="flex gap-3">
-          <Link 
-            href="/create-recipe"
-            className="flex items-center gap-2 px-6 py-3 rounded-[var(--radius-theme)] bg-[var(--color-accent)] text-white font-bold shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
-          >
-            <Plus className="h-5 w-5" />
-            <span>{mode === "personal" ? "新建菜谱" : "NEW_SOP_ENTRY"}</span>
-          </Link>
-        </div>
       </div>
 
       {/* Bento Grid Layout */}
@@ -111,13 +102,13 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
           </div>
         </div>
 
-        {/* Card 4: Recent Recipes */}
-        <div className="col-span-1 md:col-span-2 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] p-6">
+        {/* Card 4: Recent Recipes & Actions */}
+        <div className="col-span-1 md:col-span-2 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <Utensils className="h-5 w-5 text-[var(--color-accent)]" />
               <h4 className="font-bold text-[var(--color-main)]">
-                {mode === "personal" ? "最近编辑" : "RECENT_MODIFICATIONS"}
+                {mode === "personal" ? "我的菜谱" : "SOP_DATABASE"}
               </h4>
             </div>
             <Link href="/recipes" className="text-xs font-medium text-[var(--color-muted)] hover:text-[var(--color-main)]">
@@ -125,23 +116,50 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
             </Link>
           </div>
           
-          {recentRecipes.length > 0 ? (
-             <div className="space-y-3">
-                {recentRecipes.map(recipe => (
+          <div className="flex-1 space-y-3 mb-6">
+            {recentRecipes.length > 0 ? (
+                recentRecipes.map(recipe => (
                     <Link key={recipe.id} href={`/recipes/${recipe.id}/edit`} className="flex items-center justify-between p-3 rounded-lg hover:bg-[var(--color-page)] transition-colors group">
                         <span className="font-medium text-[var(--color-main)] group-hover:text-[var(--color-accent)] transition-colors">{recipe.title}</span>
                         <span className="text-xs text-[var(--color-muted)]">{new Date(recipe.updated_at).toLocaleDateString()}</span>
                     </Link>
-                ))}
-             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-center border-2 border-dashed border-[var(--color-border-theme)] rounded-[var(--radius-theme)]">
-                <p className="text-[var(--color-muted)] mb-3">暂无菜谱</p>
-                <Link href="/create-recipe" className="text-sm font-bold text-[var(--color-accent)] hover:underline">
-                创建第一个菜谱
-                </Link>
+                ))
+            ) : (
+                <div className="text-center py-4 text-[var(--color-muted)]">暂无菜谱</div>
+            )}
+          </div>
+
+          <Link 
+            href="/create-recipe" 
+            className="w-full py-2.5 rounded-[var(--radius-theme)] border-2 border-dashed border-[var(--color-border-theme)] text-[var(--color-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] font-bold flex items-center justify-center gap-2 transition-all group"
+          >
+              <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" />
+              {mode === "personal" ? "新建菜谱" : "CREATE_NEW_ENTRY"}
+          </Link>
+        </div>
+
+        {/* Card 5: Menu Generator (NEW CARD) */}
+        <div className="col-span-1 md:col-span-1 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] p-6 relative overflow-hidden group hover:border-[var(--color-accent)] transition-colors">
+            <div className="flex items-center gap-2 mb-4">
+                <div className="p-2 rounded-lg bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+                    <Sparkles className="h-5 w-5" />
+                </div>
+                <h4 className="font-bold text-[var(--color-main)]">
+                    {mode === "personal" ? "菜单生成器" : "MENU_ASSET_GEN"}
+                </h4>
             </div>
-          )}
+            
+            <p className="text-sm text-[var(--color-muted)] mb-6 min-h-[40px]">
+                {mode === "personal" ? "为您的晚宴定制专属精美菜单图片。" : "Generate printable menu assets for distribution."}
+            </p>
+
+            <Link 
+                href="/menu-generator"
+                className="w-full py-2 rounded-[var(--radius-theme)] bg-[var(--color-main)] text-[var(--color-page)] text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+            >
+                去生成
+                <ArrowRight className="h-3 w-3" />
+            </Link>
         </div>
 
         {/* Card 5: Recent Sessions (History) */}

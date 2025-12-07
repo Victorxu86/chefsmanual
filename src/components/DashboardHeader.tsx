@@ -43,14 +43,6 @@ export function DashboardHeader({ userEmail }: { userEmail: string }) {
 
         {/* Actions Area */}
         <div className="flex items-center gap-4">
-          <Link 
-            href="/create-recipe"
-            className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-[var(--radius-theme)] bg-[var(--color-accent)] text-white text-sm font-bold hover:opacity-90 transition-all shadow-lg hover:shadow-[var(--color-accent)]/30"
-          >
-            <Plus className="h-4 w-4" />
-            <span>新建菜谱</span>
-          </Link>
-
           <div className="h-6 w-px bg-[var(--color-border-theme)] mx-2" />
           
           <ThemeToggle />
