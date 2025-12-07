@@ -51,16 +51,16 @@ export function MenuGeneratorClient({ recipes, userName }: MenuGeneratorClientPr
         backgroundColor: mode === 'business' ? '#000000' : '#ffffff',
         useCORS: true,
         allowTaint: true,
-        logging: true, // Enable logging to see errors in console
-        onclone: (clonedDoc) => {
-            // Fix vertical offset in html2canvas by manually adjusting the text position
-            const brandText = clonedDoc.getElementById('menu-brand-text')
-            if (brandText) {
-                brandText.style.position = 'relative'
-                brandText.style.top = '-2px' // Pull text up to correct canvas rendering offset
-            }
-        }
-      })
+          logging: true, // Enable logging to see errors in console
+          onclone: (clonedDoc) => {
+             // Fix vertical offset in html2canvas by manually adjusting the text position
+             const brandText = clonedDoc.getElementById('menu-brand-text')
+             if (brandText) {
+                 brandText.style.position = 'relative'
+                 brandText.style.top = '-2px' // Pull text up to correct canvas rendering offset
+             }
+          }
+        })
 
       const link = document.createElement('a')
       link.download = `chefsmanual-menu-${Date.now()}.png`
@@ -212,11 +212,17 @@ export function MenuGeneratorClient({ recipes, userName }: MenuGeneratorClientPr
                         color: '#2d3436'
                     }}
                 >
-                    {/* Decorative Border */}
-                    <div className="absolute inset-4 border-2 border-[#2d3436] opacity-10 pointer-events-none" 
-                         style={{ borderColor: 'rgba(45, 52, 54, 0.1)' }} />
-                    <div className="absolute inset-5 border border-[#2d3436] opacity-10 pointer-events-none" 
-                         style={{ borderColor: 'rgba(45, 52, 54, 0.1)' }} />
+                    {/* Decorative Border - Art Deco Style */}
+                    <div className="absolute inset-3 pointer-events-none" 
+                         style={{ border: '1px solid rgba(45, 52, 54, 0.15)' }} />
+                    <div className="absolute inset-5 pointer-events-none" 
+                         style={{ border: '2px solid rgba(45, 52, 54, 0.8)' }} />
+                    
+                    {/* Corner Accents */}
+                    <div className="absolute top-5 left-5 w-2 h-2 bg-[#2d3436] pointer-events-none" />
+                    <div className="absolute top-5 right-5 w-2 h-2 bg-[#2d3436] pointer-events-none" />
+                    <div className="absolute bottom-5 left-5 w-2 h-2 bg-[#2d3436] pointer-events-none" />
+                    <div className="absolute bottom-5 right-5 w-2 h-2 bg-[#2d3436] pointer-events-none" />
 
                     {/* Header */}
                     <div className="w-full relative z-10">
