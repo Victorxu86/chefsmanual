@@ -11,6 +11,7 @@ export interface SchedulerStep {
   duration: number // 秒
   type: "prep" | "cook" | "wait" | "serve"
   isActive: boolean // 是否占用人手
+  load?: number // 注意力负载 (0.0 - 1.0), 默认为 1.0 (全神贯注)
   equipment?: string // 占用特定设备
   temp?: number // 温度需求
   isInterruptible: boolean 
@@ -87,7 +88,11 @@ class ResourceTimeline {
         }
       })
       
-      if (currentLoad + required > capacity) return false
+      // 核心修改：对于 Chef 资源，容量为 1.0 (代表 100% 注意力)
+      // 如果是设备资源，容量通常是整数 (e.g. 1个炉头)
+      // 我们统一用 capacity 参数，但在 Chef 调用时传入 1.0 即可
+      // 注意：这里允许微小的浮点数误差
+      if (currentLoad + required > capacity + 0.001) return false
     }
 
     return true
@@ -351,7 +356,37 @@ export class KitchenScheduler {
   // ... (identifyRequirements, tryAllocate, check helpers 保持不变)
   private identifyRequirements(step: SchedulerStep): { type: string, load: number, temp?: number, capability?: string }[] {
     const reqs: { type: string, load: number, temp?: number, capability?: string }[] = []
-    if (step.isActive) reqs.push({ type: 'chef', load: 1.0 })
+    
+    if (step.isActive) {
+        // 智能负载推断 (Load Inference)
+        // 默认为 1.0 (全神贯注)
+        let load = 1.0
+        
+        // 1. 煮/炖/焖 (Simmering/Boiling/Stewing) -> 低负载 (0.1 - 0.2)
+        // 只需要偶尔看一眼
+        if (['煮', '炖', '焖', '熬', '煲', 'simmer', 'stew', 'boil'].some(k => step.instruction.toLowerCase().includes(k))) {
+            load = 0.2
+        }
+        
+        // 2. 烤/蒸 (Baking/Steaming) -> 极低负载 (0.05)
+        // 主要是设备在工作
+        if (['烤', '蒸', 'bake', 'roast', 'steam'].some(k => step.instruction.toLowerCase().includes(k))) {
+            load = 0.05
+        }
+        
+        // 3. 切/备菜 (Prep) -> 高负载 (0.8 - 1.0)
+        // 虽然是备菜，但也需要手眼配合，很难同时炒菜，但可能同时看火
+        if (step.type === 'prep') {
+            load = 0.8
+        }
+
+        // 4. 爆炒 (Stir-fry) -> 满负载 (1.0)
+        if (['炒', '煎', '炸', 'stir-fry', 'fry'].some(k => step.instruction.toLowerCase().includes(k))) {
+            load = 1.0
+        }
+
+        reqs.push({ type: 'chef', load: load })
+    }
     
     // Stove 逻辑细化
     if (this.isStoveRequired(step)) {

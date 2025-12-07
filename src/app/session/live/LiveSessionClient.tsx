@@ -539,6 +539,7 @@ function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onUndo, onForceS
 
                         {/* Controls */}
                         <div className="flex gap-4">
+                            {/* Undo Button */}
                             <button 
                                 onClick={onUndo}
                                 className="px-6 py-4 border border-[var(--color-border-theme)] text-[var(--color-muted)] font-bold rounded-[var(--radius-theme)] hover:bg-black/5 transition-all flex items-center justify-center"
@@ -547,12 +548,25 @@ function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onUndo, onForceS
                                 <ChevronLeft className="h-8 w-8" />
                             </button>
                             
+                            {/* Complete Button */}
                             <button 
-                                onClick={() => onComplete(currentTask.runtimeId)}
+                                onClick={() => {
+                                    // Logic: If task is "passive" (like waiting for boil), ask for double confirmation?
+                                    // Or just complete it. The user requirement said:
+                                    // "If user completes a non-skippable task (like boiling), next tasks shouldn't ask for confirmation again."
+                                    // Actually, our current logic is "Dependency Met -> Force Active".
+                                    // So if this task completes, dependent tasks automatically unlock.
+                                    // The user wants to avoid "Waiting for confirmation" state for tasks that naturally follow a completed hard task.
+                                    
+                                    // Our existing `handleCompleteTask` logic (Force Active) already handles this by auto-starting the next task if dependency met.
+                                    // We just need to ensure the UI reflects this "Auto-Flow".
+                                    
+                                    onComplete(currentTask.runtimeId)
+                                }}
                                 className="flex-1 py-4 bg-[var(--color-accent)] text-white font-bold rounded-[var(--radius-theme)] hover:opacity-90 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2 text-2xl"
                             >
                                 <CheckCircle className="h-8 w-8" />
-                                完成步骤
+                                {currentTask.step.type === 'wait' ? '确认完成等待' : '完成步骤'}
                             </button>
                         </div>
                     </div>
