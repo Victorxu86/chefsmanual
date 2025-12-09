@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation"
 import { ArrowLeft, Clock, Flame, ChefHat, Users, Play, Calendar } from "lucide-react"
 import { DashboardHeader } from "@/components/DashboardHeader"
 import { EQUIPMENT, HEAT_LEVELS } from "@/lib/constants"
-import { KitchenScheduler } from "@/lib/scheduler"
 
 // Helper to format duration
 const formatDuration = (seconds: number) => {
@@ -27,37 +26,8 @@ export function RecipeDetailClient({ recipe }: { recipe: any }) {
   }
 
   const handleStartCooking = () => {
-    // Default resources
-    const resources = {
-      stove: 2,
-      oven: 1,
-      chef: 1,
-      board: 1,
-      bowl: 2
-    }
-
-    const scheduler = new KitchenScheduler(resources, 'relaxed')
-    const timeline = scheduler.schedule([{
-         id: recipe.id,
-         title: recipe.title,
-         category: recipe.category,
-         steps: recipe.recipe_steps
-    }])
-
-    const sessionData = {
-      timeline,
-      resources,
-      recipes: [{
-         id: recipe.id,
-         title: recipe.title,
-         cover_image: recipe.cover_image
-      }],
-      startedAt: Date.now(),
-      mode: 'relaxed'
-    }
-
-    localStorage.setItem('cooking_session', JSON.stringify(sessionData))
-    router.push('/session/live')
+    // Navigate to session config page with this recipe selected
+    router.push(`/session?ids=${recipe.id}`)
   }
 
   const handleAddToPlan = () => {
