@@ -29,7 +29,7 @@ const formatDuration = (seconds: number) => {
 
 export function Step3Timeline() {
   const { control } = useFormContext()
-  const { fields, append, remove, update } = useFieldArray({
+  const { fields, append, remove, update, insert } = useFieldArray({
     control,
     name: "steps"
   })
@@ -58,6 +58,22 @@ export function Step3Timeline() {
       _selectedIngredients: [] 
     })
     setSelectedIndex(fields.length)
+    setActiveRealmId(ACTION_HIERARCHY[0].id)
+    setActiveCategoryId(null)
+  }
+
+  const handleInsertStep = (insertIndex: number) => {
+    insert(insertIndex, {
+      step_order: insertIndex + 1,
+      instruction: "点击配置步骤",
+      step_type: "cook",
+      duration: 60,
+      is_active: true,
+      equipment: "wok",
+      heat_level: "medium",
+      _selectedIngredients: [] 
+    })
+    setSelectedIndex(insertIndex)
     setActiveRealmId(ACTION_HIERARCHY[0].id)
     setActiveCategoryId(null)
   }
@@ -245,7 +261,25 @@ export function Step3Timeline() {
             <div key={field.id} className="relative pl-8 group" onClick={(e) => e.stopPropagation()}>
               {/* 连接线 */}
               {index < fields.length - 1 && (
-                <div className="absolute left-[11px] top-8 bottom-[-16px] w-[2px] bg-[var(--color-border-theme)]" />
+                <>
+                  <div className="absolute left-[11px] top-8 bottom-[-16px] w-[2px] bg-[var(--color-border-theme)]" />
+                  
+                  {/* 插入按钮区域 */}
+                  <div className="absolute left-0 right-0 -bottom-6 h-8 flex items-center justify-center z-20 group/insert">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleInsertStep(index + 1);
+                      }}
+                      className="opacity-0 group-hover/insert:opacity-100 transition-all duration-200 bg-[var(--color-card)] border border-[var(--color-accent)] text-[var(--color-accent)] text-[10px] px-3 py-0.5 rounded-full shadow-sm flex items-center gap-2 transform scale-95 hover:scale-105 hover:shadow-md cursor-pointer"
+                    >
+                      <span className="opacity-30 tracking-tighter">-----</span> 
+                      <Plus className="h-3 w-3 stroke-[3px]" /> 
+                      <span className="opacity-30 tracking-tighter">-----</span>
+                    </button>
+                  </div>
+                </>
               )}
               
               {/* 节点圆点 */}

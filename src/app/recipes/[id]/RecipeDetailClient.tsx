@@ -2,9 +2,11 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { ArrowLeft, Clock, Flame, ChefHat, Users, Play, Calendar } from "lucide-react"
 import { DashboardHeader } from "@/components/DashboardHeader"
 import { EQUIPMENT, HEAT_LEVELS } from "@/lib/constants"
+import { KitchenScheduler } from "@/lib/scheduler"
 
 // Helper to format duration
 const formatDuration = (seconds: number) => {
@@ -14,6 +16,7 @@ const formatDuration = (seconds: number) => {
 }
 
 export function RecipeDetailClient({ recipe }: { recipe: any }) {
+  const router = useRouter()
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set())
 
   const toggleIngredient = (id: string) => {
@@ -21,6 +24,44 @@ export function RecipeDetailClient({ recipe }: { recipe: any }) {
     if (next.has(id)) next.delete(id)
     else next.add(id)
     setCheckedIngredients(next)
+  }
+
+  const handleStartCooking = () => {
+    // Default resources
+    const resources = {
+      stove: 2,
+      oven: 1,
+      chef: 1,
+      board: 1,
+      bowl: 2
+    }
+
+    const scheduler = new KitchenScheduler(resources, 'relaxed')
+    const timeline = scheduler.schedule([{
+         id: recipe.id,
+         title: recipe.title,
+         category: recipe.category,
+         steps: recipe.recipe_steps
+    }])
+
+    const sessionData = {
+      timeline,
+      resources,
+      recipes: [{
+         id: recipe.id,
+         title: recipe.title,
+         cover_image: recipe.cover_image
+      }],
+      startedAt: Date.now(),
+      mode: 'relaxed'
+    }
+
+    localStorage.setItem('cooking_session', JSON.stringify(sessionData))
+    router.push('/session/live')
+  }
+
+  const handleAddToPlan = () => {
+     router.push('/plan')
   }
 
   return (
@@ -109,10 +150,16 @@ export function RecipeDetailClient({ recipe }: { recipe: any }) {
 
             {/* Actions */}
             <div className="space-y-3">
-              <button className="w-full py-3 rounded-[var(--radius-theme)] bg-[var(--color-accent)] text-white font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2">
+              <button 
+                onClick={handleStartCooking}
+                className="w-full py-3 rounded-[var(--radius-theme)] bg-[var(--color-accent)] text-white font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
+              >
                 <Play className="h-5 w-5" /> 开始烹饪导航
               </button>
-              <button className="w-full py-3 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] text-[var(--color-main)] font-bold hover:bg-[var(--color-page)] transition-all flex items-center justify-center gap-2">
+              <button 
+                onClick={handleAddToPlan}
+                className="w-full py-3 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] text-[var(--color-main)] font-bold hover:bg-[var(--color-page)] transition-all flex items-center justify-center gap-2"
+              >
                 <Calendar className="h-5 w-5" /> 加入计划
               </button>
             </div>
