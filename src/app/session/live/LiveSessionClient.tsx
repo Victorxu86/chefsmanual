@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { ScheduledBlock } from "@/lib/scheduler"
 import { ArrowLeft, Play, Pause, CheckCircle, AlertCircle, Clock, Flame, User, ChefHat, ChevronLeft, ChevronRight, Plus, X, Coffee, ArrowRight } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
+import { SmartCookingDial } from "@/components/SmartCookingDial"
 
 // === State Models ===
 
@@ -14,6 +15,8 @@ interface LiveTask extends ScheduledBlock {
   actualStartTime?: number
   actualEndTime?: number
   forceActive?: boolean
+  // Add override duration for manual adjustment
+  manualDurationAddon?: number 
 }
 
 interface ChefState {
@@ -121,7 +124,8 @@ export function LiveSessionClient() {
       const initialTasks = data.timeline.map((block: any, index: number) => ({
         ...block,
         runtimeId: `task_${index}`,
-        status: 'pending'
+        status: 'pending',
+        manualDurationAddon: 0
       }))
 
       const initialChefs = Array.from({ length: data.resources.chef }).map((_, i) => ({
@@ -372,6 +376,21 @@ export function LiveSessionClient() {
     })
   }
 
+  const handleAddOneMinute = (runtimeId: string) => {
+      setLiveState(prev => {
+          const nextTasks = [...prev.tasks]
+          const taskIndex = nextTasks.findIndex(t => t.runtimeId === runtimeId)
+          if (taskIndex === -1) return prev
+          
+          nextTasks[taskIndex] = {
+              ...nextTasks[taskIndex],
+              manualDurationAddon: (nextTasks[taskIndex].manualDurationAddon || 0) + 60
+          }
+          
+          return { ...prev, tasks: nextTasks }
+      })
+  }
+
   if (!sessionData) return <div className="p-8">加载烹饪数据...</div>
 
   const isSingleChef = liveState.chefs.length === 1
@@ -444,6 +463,7 @@ export function LiveSessionClient() {
             allTasks={liveState.tasks} 
             elapsedSeconds={liveState.elapsedSeconds}
             onComplete={handleCompleteTask}
+            onAddOneMinute={handleAddOneMinute}
             onUndo={() => handleUndo(liveState.chefs[0].id)}
             onForceStart={handleForceStart}
             isSingleMode={isSingleChef}
@@ -457,6 +477,7 @@ export function LiveSessionClient() {
                     allTasks={liveState.tasks} 
                     elapsedSeconds={liveState.elapsedSeconds}
                     onComplete={handleCompleteTask}
+                    onAddOneMinute={handleAddOneMinute}
                     onUndo={() => handleUndo(liveState.chefs[1].id)}
                     onForceStart={handleForceStart}
                     isSecondary
@@ -482,7 +503,7 @@ export function LiveSessionClient() {
   )
 }
 
-function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onUndo, onForceStart, isSecondary = false, isSingleMode = false }: any) {
+function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onAddOneMinute, onUndo, onForceStart, isSecondary = false, isSingleMode = false }: any) {
     const currentTask = allTasks.find((t: any) => t.runtimeId === chef.currentTaskId)
     const nextTask = allTasks.find((t: any) => t.runtimeId === chef.nextTaskId)
 
@@ -537,7 +558,7 @@ function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onUndo, onForceS
                             当前任务
                         </div>
 
-                        <div className="mb-8">
+                        <div className="mb-4">
                             <div className="flex items-center gap-3 mb-4 text-[var(--color-muted)]">
                                 {currentTask.step.type === 'cook' ? <Flame className="h-6 w-6 text-orange-500" /> : <CheckCircle className="h-6 w-6 text-green-500" />}
                                 <span className="uppercase font-bold text-sm tracking-wider">{
@@ -547,7 +568,7 @@ function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onUndo, onForceS
                                     currentTask.step.type === 'serve' ? '装盘' : currentTask.step.type
                                 }</span>
                             </div>
-                            <h2 className={`${isSingleMode ? 'text-6xl' : 'text-4xl'} font-bold text-[var(--color-main)] leading-tight mb-4`}>
+                            <h2 className={`${isSingleMode ? 'text-5xl' : 'text-4xl'} font-bold text-[var(--color-main)] leading-tight mb-4`}>
                                 {currentTask.step.instruction}
                             </h2>
                             
@@ -557,50 +578,29 @@ function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onUndo, onForceS
                                     <AlertCircle className="h-5 w-5 text-[var(--color-accent)] shrink-0 mt-0.5" />
                                     <span>{getContextTip(currentTask)}</span>
                                 </div>
-                            ) : (
-                                <div className="flex items-start gap-2 text-xs text-[var(--color-muted)] bg-[var(--color-page)] p-3 rounded-lg border border-[var(--color-border-theme)]/50">
-                                    <AlertCircle className="h-4 w-4 text-[var(--color-accent)] shrink-0 mt-0.5" />
-                                    <span>点击完成后即可进入下一步。</span>
-                                </div>
-                            )}
+                            ) : null}
                         </div>
 
-                        {/* Countdown */}
-                        <div className="flex items-end gap-2 mb-10">
-                            <span className={`${isSingleMode ? 'text-8xl' : 'text-6xl'} font-mono font-bold text-[var(--color-main)]`}>
-                                {(() => {
-                                    const remainingSeconds = Math.max(0, Math.ceil(currentTask.step.duration - (elapsedSeconds - currentTask.actualStartTime)));
-                                    if (remainingSeconds < 60) return remainingSeconds.toString();
-                                    const m = Math.floor(remainingSeconds / 60);
-                                    const s = remainingSeconds % 60;
-                                    return `${m}:${s.toString().padStart(2, '0')}`;
-                                })()}
-                            </span>
-                            <span className="text-xl text-[var(--color-muted)] mb-4">
-                                {Math.max(0, Math.ceil(currentTask.step.duration - (elapsedSeconds - currentTask.actualStartTime))) < 60 ? '秒剩余' : '剩余'}
-                            </span>
+                        {/* NEW: Smart Dial Integration */}
+                        <div className="flex justify-center mb-6">
+                            <SmartCookingDial 
+                                duration={currentTask.step.duration + (currentTask.manualDurationAddon || 0)}
+                                elapsed={elapsedSeconds - currentTask.actualStartTime}
+                                type={currentTask.step.type}
+                                isLocked={false} // Active task is never locked
+                                onComplete={() => onComplete(currentTask.runtimeId)}
+                                onAddOneMinute={() => onAddOneMinute(currentTask.runtimeId)}
+                            />
                         </div>
 
-                        {/* Controls */}
-                        <div className="flex gap-4">
-                            {/* Undo Button */}
+                        {/* Undo Link */}
+                        <div className="text-center">
                             <button 
                                 onClick={onUndo}
-                                className="px-6 py-4 border border-[var(--color-border-theme)] text-[var(--color-muted)] font-bold rounded-[var(--radius-theme)] hover:bg-black/5 transition-all flex items-center justify-center"
-                                title="返回上一步"
+                                className="text-xs text-[var(--color-muted)] hover:text-[var(--color-accent)] hover:underline flex items-center justify-center gap-1 mx-auto"
                             >
-                                <ChevronLeft className="h-8 w-8" />
-                            </button>
-                            
-                            {/* Complete Button */}
-                            <button 
-                                onClick={() => {
-                                    onComplete(currentTask.runtimeId)
-                                }}
-                                className="flex-1 py-4 bg-[var(--color-accent)] text-white font-bold rounded-[var(--radius-theme)] hover:opacity-90 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2 text-2xl"
-                            >
-                                <CheckCircle className="h-8 w-8" />
-                                {currentTask.step.type === 'wait' ? '确认完成等待' : '完成步骤'}
+                                <ChevronLeft className="h-3 w-3" />
+                                返回上一步
                             </button>
                         </div>
                     </div>
