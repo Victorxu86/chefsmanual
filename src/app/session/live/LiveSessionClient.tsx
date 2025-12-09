@@ -7,6 +7,8 @@ import { ArrowLeft, Play, Pause, CheckCircle, AlertCircle, Clock, Flame, User, C
 import { createClient } from "@/utils/supabase/client"
 import { SmartCookingDial } from "@/components/SmartCookingDial"
 
+import { ACTIONS } from "@/lib/constants"
+
 // === State Models ===
 
 interface LiveTask extends ScheduledBlock {
@@ -32,6 +34,7 @@ interface LiveSessionState {
   startTime?: number
   elapsedSeconds: number
   isPaused: boolean
+  notification: { message: string, targetChefId: string, timestamp: number } | null // NEW: Notification system
 }
 
 export function LiveSessionClient() {
@@ -41,7 +44,8 @@ export function LiveSessionClient() {
     tasks: [],
     chefs: [],
     elapsedSeconds: 0,
-    isPaused: true
+    isPaused: true,
+    notification: null
   })
   
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -311,7 +315,34 @@ export function LiveSessionClient() {
       // 3. Update assignments IMMEDIATELY to avoid lag
       const nextChefs = updateChefAssignments(nextTasks, prev.chefs, prev.elapsedSeconds)
 
-      return { ...prev, tasks: nextTasks, chefs: nextChefs }
+      // 4. Collaboration Notification (Check if we unblocked someone else)
+      let nextNotification = prev.notification
+      
+      // Find tasks belonging to OTHER chefs that depend on this recipe
+      const potentialUnblockedTasks = nextTasks.filter(t => 
+          t.resourceId !== completedTask.resourceId && // Other chef
+          t.status !== 'completed' &&
+          t.step.recipeId === completedTask.step.recipeId &&
+          t.step.stepOrder > completedTask.step.stepOrder
+      )
+
+      potentialUnblockedTasks.forEach(target => {
+          // Check if this task is now ready (all previous steps completed)
+          const isNowReady = isDependencyMet(target, nextTasks)
+          
+          // Check if it WAS blocked before (meaning, dependencies were NOT met in prev.tasks)
+          // Actually, simpler logic: If it IS ready now, and it's pending, notify.
+          if (isNowReady && target.status === 'pending') {
+              const fromName = prev.chefs.find(c => c.id === completedTask.resourceId)?.name || "伙伴"
+              nextNotification = {
+                  message: `${fromName} 完成了前置步骤，您可以开始 "${target.step.instruction}" 了！`,
+                  targetChefId: target.resourceId,
+                  timestamp: Date.now()
+              }
+          }
+      })
+
+      return { ...prev, tasks: nextTasks, chefs: nextChefs, notification: nextNotification }
     })
   }
 
@@ -486,6 +517,7 @@ export function LiveSessionClient() {
             onUndo={() => handleUndo(liveState.chefs[0].id)}
             onForceStart={handleForceStart}
             isSingleMode={isSingleChef}
+            notification={liveState.notification}
         />
 
         {/* Chef B (Right/Bottom) - If exists */}
@@ -500,6 +532,7 @@ export function LiveSessionClient() {
                     onUndo={() => handleUndo(liveState.chefs[1].id)}
                     onForceStart={handleForceStart}
                     isSecondary
+                    notification={liveState.notification}
                 />
             ) : (
                 <div className="p-6 flex flex-col relative bg-[var(--color-card)]/50 items-center justify-center text-[var(--color-muted)]">
@@ -522,9 +555,27 @@ export function LiveSessionClient() {
   )
 }
 
-function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onAddOneMinute, onUndo, onForceStart, isSecondary = false, isSingleMode = false }: any) {
+function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onAddOneMinute, onUndo, onForceStart, isSecondary = false, isSingleMode = false, notification }: any) {
     const currentTask = allTasks.find((t: any) => t.runtimeId === chef.currentTaskId)
     const nextTask = allTasks.find((t: any) => t.runtimeId === chef.nextTaskId)
+    
+    // Notification Local State
+    const [activeNotif, setActiveNotif] = useState<string | null>(null)
+    
+    useEffect(() => {
+        if (notification && notification.targetChefId === chef.id && (Date.now() - notification.timestamp < 8000)) {
+            setActiveNotif(notification.message)
+            const timer = setTimeout(() => setActiveNotif(null), 8000)
+            return () => clearTimeout(timer)
+        }
+    }, [notification, chef.id])
+
+    // Determine Fluid Task
+    // @ts-ignore
+    const actionKey = currentTask?.step?._actionKey
+    // @ts-ignore
+    const actionDef = actionKey ? ACTIONS[actionKey] : null
+    const isFluid = actionDef?.isFluid || false
 
     // Find blocking info
     const getBlockingInfo = () => {
@@ -572,6 +623,22 @@ function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onAddOneMinute, 
                     {/* Main UI Container: Removed Card, now centered Dial */}
                     <div className="flex flex-col items-center gap-8 relative w-full max-w-[600px] aspect-square flex-shrink-0">
                         
+                        {/* Notification Toast (Collaboration) */}
+                        {activeNotif && (
+                            <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-full max-w-sm z-50">
+                                <div className="bg-[var(--color-accent)] text-white px-6 py-4 rounded-xl shadow-xl flex items-center gap-4 animate-in slide-in-from-top-4 fade-in duration-500 border-2 border-white/20">
+                                    <div className="bg-white/20 p-2 rounded-full">
+                                        <CheckCircle className="h-6 w-6" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-bold text-sm">协作提醒</p>
+                                        <p className="text-sm opacity-90">{activeNotif}</p>
+                                    </div>
+                                    <button onClick={() => setActiveNotif(null)} className="opacity-50 hover:opacity-100"><X className="h-4 w-4"/></button>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Contextual Tip Floating Top */}
                         {getContextTip(currentTask) && (
                             <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-full text-center">
@@ -591,6 +658,7 @@ function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onAddOneMinute, 
                             onAddOneMinute={() => onAddOneMinute(currentTask.runtimeId)}
                             size={500} // Large responsive size, handled by CSS mostly but baseline 500
                             instruction={currentTask.step.instruction}
+                            isFluid={isFluid} // Pass fluid flag
                         />
 
                         {/* Undo Link Floating Bottom */}

@@ -13,6 +13,7 @@ interface SmartCookingDialProps {
   onCancelComplete?: () => void // If auto-completing, ability to cancel
   size?: number
   instruction?: string // NEW: Instruction text to display inside
+  isFluid?: boolean // NEW: Soft task (quick skip)
 }
 
 export function SmartCookingDial({
@@ -23,7 +24,8 @@ export function SmartCookingDial({
   onComplete,
   onAddOneMinute,
   size = 280, // Default size if not provided
-  instruction
+  instruction,
+  isFluid = false
 }: SmartCookingDialProps) {
   const [isHovering, setIsHovering] = useState(false)
   const [longPressProgress, setLongPressProgress] = useState(0)
@@ -35,10 +37,13 @@ export function SmartCookingDial({
   const progress = duration > 0 ? Math.min(100, (elapsed / duration) * 100) : 100
   const isFinished = elapsed >= duration
 
-  // Long press logic
+  // Click / Press Logic
   const handleMouseDown = () => {
     if (isLocked) return
     
+    // For Fluid Tasks: Immediate interaction (short press simulation) or just handle in Click
+    if (isFluid) return 
+
     // Start filling long press ring
     let start = Date.now()
     const checkPress = () => {
@@ -60,6 +65,13 @@ export function SmartCookingDial({
   const handleMouseUp = () => {
     if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current)
     setLongPressProgress(0)
+  }
+
+  // Handle Click for Fluid Tasks
+  const handleClick = () => {
+      if (!isLocked && isFluid) {
+          onComplete()
+      }
   }
 
   // Auto-advance logic for 'cook' tasks
@@ -98,6 +110,7 @@ export function SmartCookingDial({
             onMouseLeave={handleMouseUp}
             onTouchStart={handleMouseDown}
             onTouchEnd={handleMouseUp}
+            onClick={handleClick}
             onMouseEnter={() => setIsHovering(true)}
         >
             {/* Background Track */}
@@ -164,15 +177,24 @@ export function SmartCookingDial({
                             </h2>
                         )}
 
-                        {/* Remaining Time */}
-                        <span className={`text-6xl md:text-8xl font-mono font-bold tracking-tighter ${isLocked ? 'text-gray-300' : 'text-[var(--color-main)]'}`}>
-                            {(() => {
-                                const remaining = Math.max(0, Math.ceil(duration - elapsed))
-                                const m = Math.floor(remaining / 60)
-                                const s = remaining % 60
-                                return `${m}:${s.toString().padStart(2, '0')}`
-                            })()}
-                        </span>
+                        {/* Remaining Time or Fluid Hint */}
+                        {isFluid ? (
+                             <div className="flex flex-col items-center gap-2 animate-pulse">
+                                <span className="text-sm font-bold uppercase tracking-widest text-[var(--color-accent)] border border-[var(--color-accent)] px-3 py-1 rounded-full">
+                                    快速步骤
+                                </span>
+                                <span className="text-lg text-[var(--color-muted)]">点击圆环完成</span>
+                             </div>
+                        ) : (
+                            <span className={`text-6xl md:text-8xl font-mono font-bold tracking-tighter ${isLocked ? 'text-gray-300' : 'text-[var(--color-main)]'}`}>
+                                {(() => {
+                                    const remaining = Math.max(0, Math.ceil(duration - elapsed))
+                                    const m = Math.floor(remaining / 60)
+                                    const s = remaining % 60
+                                    return `${m}:${s.toString().padStart(2, '0')}`
+                                })()}
+                            </span>
+                        )}
                         
                         {/* Context Hint */}
                         <div className="mt-4 text-sm font-bold uppercase tracking-widest text-[var(--color-muted)] flex items-center gap-2 opacity-70">
@@ -183,7 +205,7 @@ export function SmartCookingDial({
                                     {type === 'cook' && <Flame className="h-4 w-4" />}
                                     {type === 'prep' && <Check className="h-4 w-4" />}
                                     {type === 'wait' && <Clock className="h-4 w-4" />}
-                                    <span>长按跳过</span>
+                                    <span>{isFluid ? '轻触完成' : '长按跳过'}</span>
                                 </>
                             )}
                         </div>

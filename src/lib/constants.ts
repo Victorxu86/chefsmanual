@@ -113,11 +113,12 @@ export type ActionDefinition = {
   type: "prep" | "cook" | "wait" | "serve"
   params: string[]
   forcePassive?: boolean
+  isFluid?: boolean // 标记是否为软性任务（可快速跳过）
 }
 
-const createAction = (label: string, type: ActionDefinition['type'], params: string[], icon: string = "•", forcePassive: boolean = false): ActionDefinition => {
+const createAction = (label: string, type: ActionDefinition['type'], params: string[], icon: string = "•", forcePassive: boolean = false, isFluid: boolean = false): ActionDefinition => {
   const id = label
-  return { id, label, type, params, icon, forcePassive }
+  return { id, label, type, params, icon, forcePassive, isFluid }
 }
 
 // ... (ACTION_HIERARCHY 保持不变，为了节省token，我这里用 ... 表示，但实际write时必须完整)
@@ -228,10 +229,10 @@ export const ACTION_HIERARCHY = [
           createAction("预热锅", "prep", ["tool", "duration"], "🍳"),
           createAction("预热油", "prep", ["tool", "duration"], "🛢️"),
           createAction("预热烤箱", "prep", ["tool", "temp", "duration"], "⏲️"),
-          createAction("开大火", "cook", ["tool"], "🔥"),
-          createAction("转中火", "cook", ["tool"], "🔥"),
-          createAction("转小火", "cook", ["tool"], "🔥"),
-          createAction("关火", "cook", ["tool"], "🚫"),
+          createAction("开大火", "cook", ["tool"], "🔥", false, true),
+          createAction("转中火", "cook", ["tool"], "🔥", false, true),
+          createAction("转小火", "cook", ["tool"], "🔥", false, true),
+          createAction("关火", "cook", ["tool"], "🚫", false, true),
           createAction("保温", "wait", ["tool", "duration"], "🌡️", true),
           createAction("冷却", "wait", ["tool", "duration"], "❄️", true),
           createAction("冰镇", "wait", ["tool", "duration"], "🧊", true),
@@ -249,29 +250,29 @@ export const ACTION_HIERARCHY = [
         id: "clean",
         label: "清洗/处理",
         actions: [
-          createAction("清洗", "prep", ["ingredient", "duration"], "💧"),
-          createAction("冲洗", "prep", ["ingredient", "duration"]),
+          createAction("清洗", "prep", ["ingredient", "duration"], "💧", false, true),
+          createAction("冲洗", "prep", ["ingredient", "duration"], "💧", false, true),
           createAction("浸泡", "prep", ["ingredient", "duration"], "🥣", true), // 浸泡通常不需要一直看着
-          createAction("漂洗", "prep", ["ingredient", "duration"]),
+          createAction("漂洗", "prep", ["ingredient", "duration"], "💧", false, true),
           createAction("盐水浸泡", "prep", ["ingredient", "duration"], "🧂", true),
-          createAction("挑拣", "prep", ["ingredient", "duration"]),
-          createAction("去根/皮/核", "prep", ["ingredient", "duration"]),
-          createAction("剔骨/刺", "prep", ["ingredient", "duration"]),
-          createAction("去虾线", "prep", ["ingredient", "duration"]),
+          createAction("挑拣", "prep", ["ingredient", "duration"], "🤏", false, true),
+          createAction("去根/皮/核", "prep", ["ingredient", "duration"], "🔪", false, true),
+          createAction("剔骨/刺", "prep", ["ingredient", "duration"], "🔪", false, true),
+          createAction("去虾线", "prep", ["ingredient", "duration"], "🦐", false, true),
         ]
       },
       {
         id: "cut",
         label: "切工 (Active)",
         actions: [
-          createAction("切片", "prep", ["ingredient", "shape", "duration"], "🔪"),
-          createAction("切丝", "prep", ["ingredient", "shape", "duration"]),
-          createAction("切丁", "prep", ["ingredient", "shape", "duration"]),
-          createAction("切块", "prep", ["ingredient", "shape", "duration"]),
-          createAction("剁碎", "prep", ["ingredient", "shape", "duration"]),
-          createAction("拍碎", "prep", ["ingredient", "duration"], "🔨"),
-          createAction("拍松", "prep", ["ingredient", "duration"]),
-          createAction("压扁", "prep", ["ingredient", "duration"]),
+          createAction("切片", "prep", ["ingredient", "shape", "duration"], "🔪", false, true),
+          createAction("切丝", "prep", ["ingredient", "shape", "duration"], "🔪", false, true),
+          createAction("切丁", "prep", ["ingredient", "shape", "duration"], "🔪", false, true),
+          createAction("切块", "prep", ["ingredient", "shape", "duration"], "🔪", false, true),
+          createAction("剁碎", "prep", ["ingredient", "shape", "duration"], "🔪", false, true),
+          createAction("拍碎", "prep", ["ingredient", "duration"], "🔨", false, true),
+          createAction("拍松", "prep", ["ingredient", "duration"], "🔨", false, true),
+          createAction("压扁", "prep", ["ingredient", "duration"], "🔨", false, true),
         ]
       }
     ]
@@ -285,10 +286,10 @@ export const ACTION_HIERARCHY = [
         id: "mix",
         label: "混合/搅拌",
         actions: [
-          createAction("搅拌", "prep", ["ingredients", "tool", "duration"], "🔄"),
-          createAction("拌匀", "prep", ["ingredients", "tool", "duration"]),
-          createAction("打发", "prep", ["ingredients", "tool", "duration"], "🌪️"),
-          createAction("抓匀", "prep", ["ingredients", "duration"]),
+          createAction("搅拌", "prep", ["ingredients", "tool", "duration"], "🔄", false, true),
+          createAction("拌匀", "prep", ["ingredients", "tool", "duration"], "🔄", false, true),
+          createAction("打发", "prep", ["ingredients", "tool", "duration"], "🌪️", false, true),
+          createAction("抓匀", "prep", ["ingredients", "duration"], "👐", false, true),
         ]
       },
       {
@@ -298,7 +299,7 @@ export const ACTION_HIERARCHY = [
           createAction("腌制", "prep", ["ingredient", "condiment", "duration"], "🏺", true),
           createAction("腌渍", "prep", ["ingredient", "condiment", "duration"], "🏺", true),
           createAction("静置腌制", "prep", ["ingredient", "duration"], "⏳", true),
-          createAction("抹盐/糖", "prep", ["ingredient", "condiment", "duration"]), // 这个动作本身是 Active
+          createAction("抹盐/糖", "prep", ["ingredient", "condiment", "duration"], "🧂", false, true), // 这个动作本身是 Active
         ]
       }
     ]
@@ -312,12 +313,12 @@ export const ACTION_HIERARCHY = [
         id: "dough",
         label: "面团",
         actions: [
-          createAction("和面", "prep", ["ingredients", "duration"], "👐"),
-          createAction("揉面", "prep", ["ingredients", "duration"]),
+          createAction("和面", "prep", ["ingredients", "duration"], "👐", false, true),
+          createAction("揉面", "prep", ["ingredients", "duration"], "👐", false, true),
           createAction("醒面", "wait", ["ingredients", "duration"], "⏳", true),
           createAction("发酵", "wait", ["ingredients", "duration"], "🍞", true),
-          createAction("擀面", "prep", ["ingredients", "duration"]),
-          createAction("包馅", "prep", ["ingredients", "duration"]),
+          createAction("擀面", "prep", ["ingredients", "duration"], "🥖", false, true),
+          createAction("包馅", "prep", ["ingredients", "duration"], "🥟", false, true),
         ]
       },
       {
