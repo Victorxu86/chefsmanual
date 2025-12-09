@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { KitchenScheduler, ScheduledBlock } from "@/lib/scheduler"
-import { ChefHat, Play, Check, Settings, Flame, Mic, Box, Clock, Square, Soup, User, X, Plus, BookOpen, AlignLeft } from "lucide-react"
+import { KitchenScheduler, ScheduledBlock, ScheduleMode } from "@/lib/scheduler"
+import { ChefHat, Play, Check, Settings, Flame, Mic, Box, Clock, Square, Soup, User, X, Plus, BookOpen, AlignLeft, ToggleLeft, ToggleRight, Sparkles, Coffee } from "lucide-react"
 import { RECIPE_CATEGORIES } from "@/lib/constants"
 import { useRouter, useSearchParams } from "next/navigation"
 
@@ -10,6 +10,7 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('relaxed')
   
   // Init from query params
   useEffect(() => {
@@ -19,6 +20,14 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
         setSelectedIds(idSet)
     }
   }, [searchParams])
+
+  // Load mode preference from local storage on mount
+  useEffect(() => {
+    const savedMode = localStorage.getItem('scheduler_mode_preference')
+    if (savedMode === 'aggressive' || savedMode === 'relaxed') {
+        setScheduleMode(savedMode)
+    }
+  }, [])
   
   const [resources, setResources] = useState({
     stove: 2,
@@ -27,6 +36,11 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
     board: 1,
     bowl: 2
   })
+
+  const handleModeChange = (mode: ScheduleMode) => {
+    setScheduleMode(mode)
+    localStorage.setItem('scheduler_mode_preference', mode)
+  }
 
   const toggleRecipe = (id: string) => {
     const next = new Set(selectedIds)
@@ -79,9 +93,9 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
       steps: r.recipe_steps
     }))
 
-    const scheduler = new KitchenScheduler(resources)
+    const scheduler = new KitchenScheduler(resources, scheduleMode)
     return scheduler.schedule(schedulerRecipes)
-  }, [selectedIds, recipes, resources])
+  }, [selectedIds, recipes, resources, scheduleMode])
 
   const handleStartCooking = () => {
     if (timeline.length === 0) return
@@ -95,7 +109,8 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
         title: r.title,
         cover_image: r.cover_image
       })),
-      startedAt: Date.now()
+      startedAt: Date.now(),
+      mode: scheduleMode
     }
     
     localStorage.setItem('cooking_session', JSON.stringify(sessionData))
@@ -302,13 +317,44 @@ export function SessionClient({ recipes }: { recipes: any[] }) {
                 <AlignLeft className="h-5 w-5" />
                 智能调度预览
             </h2>
-            <button 
-              disabled={selectedIds.size === 0}
-              onClick={handleStartCooking}
-              className="px-6 py-2 bg-[var(--color-accent)] text-white rounded-full text-sm font-bold flex items-center gap-2 hover:bg-[var(--color-accent)] shadow-lg shadow-[var(--color-accent)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95"
-            >
-              <Play className="h-4 w-4" /> 开始烹饪导航
-            </button>
+            
+            <div className="flex items-center gap-4">
+                {/* Mode Selector */}
+                <div className="flex items-center bg-[var(--color-page)] rounded-lg p-1 border border-[var(--color-border-theme)]">
+                    <button
+                        onClick={() => handleModeChange('relaxed')}
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-all ${
+                            scheduleMode === 'relaxed' 
+                            ? 'bg-white text-[var(--color-accent)] shadow-sm' 
+                            : 'text-[var(--color-muted)] hover:text-[var(--color-main)]'
+                        }`}
+                        title="优先将备菜任务集中在最开始，减少烹饪时的手忙脚乱"
+                    >
+                        <Coffee className="h-3.5 w-3.5" />
+                        从容模式 (推荐)
+                    </button>
+                    <button
+                        onClick={() => handleModeChange('aggressive')}
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-2 transition-all ${
+                            scheduleMode === 'aggressive' 
+                            ? 'bg-white text-orange-600 shadow-sm' 
+                            : 'text-[var(--color-muted)] hover:text-[var(--color-main)]'
+                        }`}
+                        title="最大化并行效率，适合追求极速出餐的老手"
+                    >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        激进模式
+                    </button>
+                </div>
+
+                <button 
+                disabled={selectedIds.size === 0}
+                onClick={handleStartCooking}
+                className="px-6 py-2 bg-[var(--color-accent)] text-white rounded-full text-sm font-bold flex items-center gap-2 hover:bg-[var(--color-accent)] shadow-lg shadow-[var(--color-accent)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95"
+                >
+                <Play className="h-4 w-4" /> 开始烹饪导航
+                </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-auto relative bg-[var(--color-page)]">
