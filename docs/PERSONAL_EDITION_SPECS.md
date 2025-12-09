@@ -83,50 +83,38 @@
 - **数据总结**：展示实际耗时、效率提升百分比。
 - **分享功能**：一键复制文本摘要分享。
 
+### 2.7. 算法控制台 (Admin Panel) [新增]
+系统的参数配置中心，位于 `/admin` (访问密码: `0806`)。将算法从“硬编码”进化为“数据驱动”。
+
+- **功能价值**：允许管理员微调算法的核心参数，无需修改代码即可改变调度行为。
+- **主要模块**：
+  - **行动定义 (Actions)**：细粒度管理 90+ 种烹饪动作（如“爆炒”、“慢炖”、“切丁”）。
+    - 可配置参数：`Type` (类型), `Load` (注意力负载 0-1), `Active` (是否需人手), `Affinity` (亲和力分组)。
+  - **菜品分类 (Categories)**：管理“热菜”、“凉菜”等分类的调度优先级和上菜时间偏移量。
+  - **元数据管理 (Metadata)**：自定义计量单位、菜系、难度等级等。
+- **技术实现**：基于 Server Actions 和 Cookie Session 的独立认证系统，直接读写 `sys_` 开头的系统表。
+
 ---
 
 ## 3. 数据架构 (Supabase)
 
 项目使用 **Supabase (PostgreSQL)** 作为后端数据库，主要表结构如下：
 
-### 3.1. `recipes` (食谱表)
-存储食谱的基本元数据。
-- `id`: UUID, Primary Key
-- `author_id`: UUID (关联 auth.users)
-- `title`: Text
-- `description`: Text
-- `cuisine`: Text (菜系)
-- `category`: Text (main/soup/cold/dessert)
-- `difficulty`: Text
-- `total_time_minutes`: Integer
-- `is_public`: Boolean (预留社交功能)
+### 3.1. 业务数据表
+- **`recipes` (食谱表)**：存储食谱元数据 (title, cuisine, difficulty...)。
+- **`recipe_ingredients` (食材表)**：食谱关联的食材清单。
+- **`recipe_steps` (步骤表)**：食谱关联的具体步骤 (instruction, duration, equipment...)。
+- **`cooking_sessions` (会话表)**：用户的历史烹饪记录 (duration, status...)。
 
-### 3.2. `recipe_ingredients` (食材表)
-- `id`: UUID
-- `recipe_id`: UUID (FK)
-- `name`: Text
-- `amount`: Text
-- `unit`: Text
-
-### 3.3. `recipe_steps` (步骤表)
-核心调度数据来源。
-- `id`: UUID
-- `recipe_id`: UUID (FK)
-- `step_order`: Integer (顺序)
-- `instruction`: Text (指令)
-- `duration_seconds`: Integer (时长)
-- `step_type`: Text (prep/cook/wait)
-- `is_active`: Boolean
-- `equipment`: Text
-
-### 3.4. `cooking_sessions` (会话表)
-记录历史烹饪数据。
-- `id`: UUID
-- `user_id`: UUID
-- `created_at`: Timestamp
-- `total_duration_seconds`: Integer (实际耗时)
-- `recipes`: JSONB (快照存储当时的菜谱摘要)
-- `status`: Text (completed/abandoned)
+### 3.2. 系统配置表 (System Config) [新增]
+用于驱动算法和 Admin 后台的元数据表：
+- **`sys_algorithm_actions`**：存储动作定义。
+  - `id`, `category` (大类), `subcategory` (子类), `label` (名称), `keywords` (匹配词), `default_load` (负载), `is_active` (主动性), `affinity_group` (分组)。
+- **`sys_dish_categories`**：存储菜品分类规则。
+  - `slug`, `label`, `schedule_priority` (优先级), `end_time_offset` (时间偏移)。
+- **`sys_measurement_units`**：计量单位字典 (克, 勺, 个)。
+- **`sys_cuisines`**：菜系字典 (川菜, 法餐)。
+- **`sys_difficulty_levels`**：难度等级字典 (简单, 困难)。
 
 ---
 
@@ -139,6 +127,7 @@
 - **图标**: Lucide React
 - **绘图**: html2canvas, canvas-confetti
 - **状态管理**: React Context (ModeContext) + LocalStorage (Session Recovery)
+- **Admin Auth**: Cookie-based Session (独立于 Supabase Auth 的轻量级管理鉴权)
 
 ## 5. 目录结构关键点
 
@@ -152,9 +141,13 @@ src/
 │   ├── session/         # 烹饪会话配置
 │   │   ├── live/        # 实时执行页面 (Core)
 │   │   └── complete/    # 结案页面
-│   └── login/           # 认证
+│   ├── login/           # 用户认证
+│   └── admin/           # [新增] 算法参数控制台
+│       ├── login/       # Admin 独立登录
+│       └── actions.ts   # Admin Server Actions
 ├── lib/
 │   ├── scheduler.ts     # 核心调度算法 (The Brain)
+│   ├── constants.ts     # 前端常量 (逐步迁移至数据库驱动)
 │   └── database.types.ts # Supabase 类型定义
 └── components/          # UI 组件
 ```
@@ -162,4 +155,3 @@ src/
 ---
 
 *文档最后更新时间: 2025-12-07*
-

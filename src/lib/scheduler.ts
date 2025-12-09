@@ -36,9 +36,21 @@ interface ResourcePool {
   bowl: number  // 料理碗
 }
 
+interface OccupiedSpan {
+  start: number
+  end: number
+  load: number
+  temp?: number
+  metadata?: {
+    type: string
+    equipment?: string
+    instruction?: string
+  }
+}
+
 // 资源时间轴 (记录占用情况)
 class ResourceTimeline {
-  private occupied: { start: number, end: number, load: number, temp?: number }[] = []
+  private occupied: OccupiedSpan[] = []
   public totalBookedTime: number = 0
   public capability?: string // e.g. "high_heat", "normal"
 
@@ -98,9 +110,19 @@ class ResourceTimeline {
     return true
   }
 
-  book(start: number, end: number, load: number, temp?: number) {
-    this.occupied.push({ start, end, load, temp })
+  book(start: number, end: number, load: number, temp?: number, metadata?: OccupiedSpan['metadata']) {
+    this.occupied.push({ start, end, load, temp, metadata })
     this.totalBookedTime += (end - start) * load
+  }
+
+  // Helper: Find the nearest task that starts AFTER (or exactly at) the given time
+  getNearestFutureTask(time: number): OccupiedSpan | null {
+    // Filter tasks that start >= time
+    const futureTasks = this.occupied.filter(o => o.start >= time)
+    if (futureTasks.length === 0) return null
+    
+    // Sort by start time ascending
+    return futureTasks.sort((a, b) => a.start - b.start)[0]
   }
 }
 
@@ -305,7 +327,14 @@ export class KitchenScheduler {
             allocation.forEach(alloc => {
               // 核心修改：占用时间延长到 end + bufferSeconds
               // 这样下一个任务在检查 isAvailable 时，会发现这段时间（含Buffer）都被占用了
-              this.resourceStates[alloc.type][alloc.index].book(proposedStart, proposedEnd + bufferSeconds, alloc.load, step.temp)
+              // 这里的 metadata 存储了当前任务的信息，用于未来的 Inertia Check
+              const metadata = {
+                type: step.type,
+                equipment: step.equipment,
+                instruction: step.instruction
+              }
+              
+              this.resourceStates[alloc.type][alloc.index].book(proposedStart, proposedEnd + bufferSeconds, alloc.load, step.temp, metadata)
               
               outputBlocks.push({
                 step,
@@ -424,8 +453,8 @@ export class KitchenScheduler {
          // 惩罚分 = 角色不匹配 (Role Bias)
          
          const bestIndex = candidates.sort((a, b) => {
-            const scoreA = this.calculateChefScore(a, step, timelines[a])
-            const scoreB = this.calculateChefScore(b, step, timelines[b])
+            const scoreA = this.calculateChefScore(a, step, timelines[a], end)
+            const scoreB = this.calculateChefScore(b, step, timelines[b], end)
             return scoreA - scoreB
          })[0]
 
@@ -450,7 +479,7 @@ export class KitchenScheduler {
     return allocation
   }
 
-  private calculateChefScore(index: number, step: SchedulerStep, timeline: ResourceTimeline): number {
+  private calculateChefScore(index: number, step: SchedulerStep, timeline: ResourceTimeline, proposedEnd: number): number {
       let score = timeline.totalBookedTime 
 
       const isMainChef = index === 0
@@ -468,6 +497,26 @@ export class KitchenScheduler {
           // 帮厨
           if (isCook) score += 1200 // 帮厨不擅长核心烹饪 (Strong penalty)
           // if (isPrep) score += 0  // 帮厨喜欢备菜
+      }
+
+      // === 2025-12 New: Inertia Reward (减少上下文切换) ===
+      // 查看该厨师紧接着要做什么（在时间轴上是 Future Task，在排课顺序中是 Past Task）
+      // 如果当前任务和紧接着的任务类型相似，给予奖励（减少 Score）
+      const nextTask = timeline.getNearestFutureTask(proposedEnd)
+      if (nextTask && nextTask.metadata) {
+          let inertiaBonus = 0
+          
+          // 1. Same Type (e.g. Prep -> Prep)
+          if (nextTask.metadata.type === step.type) {
+              inertiaBonus += 300 // 奖励 5 分钟
+          }
+          
+          // 2. Same Equipment (e.g. Board -> Board)
+          if (step.equipment && nextTask.metadata.equipment === step.equipment) {
+              inertiaBonus += 200 // 额外奖励 3 分钟
+          }
+
+          score -= inertiaBonus
       }
 
       return score
