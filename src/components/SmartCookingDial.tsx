@@ -89,6 +89,10 @@ export function SmartCookingDial({
   
   const currentColor = isLocked ? colors.locked : colors[type] || colors.cook
   
+  // Long Press Color Mapping (Overlay)
+  // We use the same color logic but apply it to the overlay circle with opacity
+  const overlayColor = isLocked ? 'text-[var(--color-main)]' : colors[type].split(' ')[0] // Extract just text-color class
+  
   // SVG Math
   const strokeWidth = size * 0.04 // Relative stroke width
   const center = size / 2
@@ -139,7 +143,7 @@ export function SmartCookingDial({
                     className={`transition-all duration-500 ease-linear ${currentColor}`}
                 />
 
-                {/* Long Press Overlay (White/Accent) */}
+                {/* Long Press Overlay (Colored) */}
                 {longPressProgress > 0 && (
                     <circle
                         cx={center}
@@ -151,7 +155,7 @@ export function SmartCookingDial({
                         strokeDasharray={circumference}
                         strokeDashoffset={longPressOffset}
                         strokeLinecap="round"
-                        className="text-[var(--color-main)] opacity-50"
+                        className={`${overlayColor} opacity-50`}
                     />
                 )}
             </svg>
