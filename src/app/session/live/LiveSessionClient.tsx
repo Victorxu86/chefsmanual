@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { ScheduledBlock } from "@/lib/scheduler"
-import { ArrowLeft, Play, Pause, CheckCircle, AlertCircle, Clock, Flame, User, ChefHat, ChevronLeft, ChevronRight, Plus, X } from "lucide-react"
+import { ArrowLeft, Play, Pause, CheckCircle, AlertCircle, Clock, Flame, User, ChefHat, ChevronLeft, ChevronRight, Plus, X, Coffee, ArrowRight } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 
 // === State Models ===
@@ -504,6 +504,20 @@ function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onUndo, onForceS
     
     const blockingTask = !currentTask ? getBlockingInfo() : null;
 
+    // Helper for Contextual Tips
+    const getContextTip = (task: LiveTask) => {
+        const instr = task.step.instruction.toLowerCase()
+        const duration = task.step.duration
+        
+        if (instr.includes('大火') || instr.includes('爆炒')) return "🔥 注意火候：保持大火翻炒，动作要快。"
+        if (instr.includes('煮') && duration > 600) return "🍲 现在是慢炖时间，您可以稍微休息或整理台面。"
+        if (instr.includes('切') || instr.includes('剁')) return "🔪 刀工提示：注意手指安全，不急于求快。"
+        if (instr.includes('煎') && (instr.includes('鱼') || instr.includes('牛排'))) return "🥩 煎制要点：不要频繁翻动，待定型后再翻面。"
+        if (task.step.type === 'wait') return "☕️ 休息时间：利用这段时间喝口水或清洗工具。"
+        
+        return null;
+    }
+
     return (
         <div className={`p-6 flex flex-col relative h-full ${isSecondary ? 'bg-[var(--color-card)]/30' : 'bg-[var(--color-page)]'}`}>
           <div className="absolute top-4 left-4 text-xs font-bold text-[var(--color-muted)] uppercase tracking-widest flex items-center gap-2">
@@ -537,18 +551,18 @@ function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onUndo, onForceS
                                 {currentTask.step.instruction}
                             </h2>
                             
-                            {/* Reasoning Hint */}
-                            <div className="flex items-start gap-2 text-xs text-[var(--color-muted)] bg-[var(--color-page)] p-3 rounded-lg border border-[var(--color-border-theme)]/50">
-                                <AlertCircle className="h-4 w-4 text-[var(--color-accent)] shrink-0 mt-0.5" />
-                                <span>
-                                    {currentTask.step.type === 'cook' && currentTask.step.duration > 300 
-                                        ? "此步骤耗时较长，请保持关注，系统可能会在间隙安排其他备菜任务。"
-                                        : currentTask.step.type === 'prep'
-                                        ? "这是关键备料步骤，完成后将解锁后续的烹饪环节。"
-                                        : "按照指引完成操作，点击完成后即可进入下一步。"
-                                    }
-                                </span>
-                            </div>
+                            {/* Contextual Tip (Dynamic) */}
+                            {getContextTip(currentTask) ? (
+                                <div className="flex items-start gap-2 text-sm text-[var(--color-muted)] bg-[var(--color-page)] p-4 rounded-lg border border-[var(--color-border-theme)]/50 shadow-inner">
+                                    <AlertCircle className="h-5 w-5 text-[var(--color-accent)] shrink-0 mt-0.5" />
+                                    <span>{getContextTip(currentTask)}</span>
+                                </div>
+                            ) : (
+                                <div className="flex items-start gap-2 text-xs text-[var(--color-muted)] bg-[var(--color-page)] p-3 rounded-lg border border-[var(--color-border-theme)]/50">
+                                    <AlertCircle className="h-4 w-4 text-[var(--color-accent)] shrink-0 mt-0.5" />
+                                    <span>点击完成后即可进入下一步。</span>
+                                </div>
+                            )}
                         </div>
 
                         {/* Countdown */}
@@ -581,16 +595,6 @@ function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onUndo, onForceS
                             {/* Complete Button */}
                             <button 
                                 onClick={() => {
-                                    // Logic: If task is "passive" (like waiting for boil), ask for double confirmation?
-                                    // Or just complete it. The user requirement said:
-                                    // "If user completes a non-skippable task (like boiling), next tasks shouldn't ask for confirmation again."
-                                    // Actually, our current logic is "Dependency Met -> Force Active".
-                                    // So if this task completes, dependent tasks automatically unlock.
-                                    // The user wants to avoid "Waiting for confirmation" state for tasks that naturally follow a completed hard task.
-                                    
-                                    // Our existing `handleCompleteTask` logic (Force Active) already handles this by auto-starting the next task if dependency met.
-                                    // We just need to ensure the UI reflects this "Auto-Flow".
-                                    
                                     onComplete(currentTask.runtimeId)
                                 }}
                                 className="flex-1 py-4 bg-[var(--color-accent)] text-white font-bold rounded-[var(--radius-theme)] hover:opacity-90 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2 text-2xl"
@@ -602,69 +606,46 @@ function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onUndo, onForceS
                     </div>
                 </div>
             ) : (
-                <div className="text-[var(--color-muted)] text-center flex flex-col items-center gap-4">
-                    <Clock className="h-16 w-16 opacity-20 animate-pulse" />
+                <div className="w-full max-w-md bg-white border border-[var(--color-border-theme)] rounded-xl shadow-sm p-8 text-center flex flex-col items-center gap-6 animate-in zoom-in-95 duration-500">
+                    {/* Idle State / Next Up Preview */}
+                    <div className="w-20 h-20 bg-[var(--color-page)] rounded-full flex items-center justify-center relative">
+                         <div className="absolute inset-0 border-4 border-[var(--color-accent)]/20 rounded-full animate-pulse" />
+                         <Coffee className="h-8 w-8 text-[var(--color-accent)]" />
+                    </div>
+                    
                     <div>
-                        <p className="text-2xl font-medium animate-pulse">等待任务分配...</p>
-                        {blockingTask ? (
-                            <div className="mt-4 bg-[var(--color-card)] border border-[var(--color-border-theme)] p-4 rounded-xl inline-flex flex-col items-center gap-2 text-sm shadow-sm animate-in zoom-in-95">
-                                <div className="flex items-center gap-2">
-                                    <span className="opacity-80">等待:</span>
-                                    <span className="font-bold text-[var(--color-main)]">{blockingTask.step.instruction}</span>
-                                    <span className="text-xs bg-black/5 px-2 py-0.5 rounded font-mono font-bold">
-                                        {/* Real-time countdown of blocking task */}
-                                        {blockingTask.status === 'active' 
-                                            ? Math.max(0, Math.ceil(blockingTask.step.duration - (elapsedSeconds - (blockingTask.actualStartTime || 0)))) + 's'
-                                            : Math.round(blockingTask.step.duration/60) + 'm'
-                                        }
-                                    </span>
-                                </div>
-                                {onForceStart && nextTask && (
-                                    <button 
-                                        onClick={() => onForceStart(nextTask.runtimeId)}
-                                        className="w-full px-4 py-2 bg-[var(--color-accent)] text-white rounded-lg text-sm font-bold hover:opacity-90 transition-opacity shadow-sm flex items-center justify-center gap-2"
-                                    >
-                                        立即开始
-                                        <ChevronRight className="h-4 w-4" />
-                                    </button>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="mt-4 flex flex-col items-center gap-3 animate-in fade-in slide-in-from-bottom-2">
-                                <p className="text-base opacity-60">正在等待时间点或调度...</p>
-                                {onForceStart && nextTask && (
-                                    <button 
-                                        onClick={() => onForceStart(nextTask.runtimeId)}
-                                        className="px-6 py-2 bg-[var(--color-accent)] text-white rounded-full text-sm font-bold hover:opacity-90 transition-opacity shadow-lg flex items-center gap-2"
-                                    >
-                                        跳过等待，立即开始
-                                        <ChevronRight className="h-4 w-4" />
-                                    </button>
-                                )}
-                            </div>
-                        )}
+                        <h2 className="text-2xl font-bold text-[var(--color-main)] mb-2">稍事休息</h2>
+                        <p className="text-[var(--color-muted)]">
+                            {blockingTask 
+                                ? `正在等待 "${blockingTask.step.instruction}" 完成...`
+                                : "等待调度器分配下一个任务..."}
+                        </p>
                     </div>
-                </div>
-            )}
 
-            {/* Next Up */}
-            {nextTask && (
-                <div className={`w-full ${isSingleMode ? 'max-w-3xl' : 'max-w-md'} opacity-60 hover:opacity-100 transition-opacity`}>
-                    <div className="text-xs font-bold text-[var(--color-muted)] uppercase mb-2 pl-1">下个任务</div>
-                    <div className="bg-[var(--color-card)] border border-[var(--color-border-theme)] p-4 rounded-lg flex items-center justify-between cursor-pointer group"
-                    >
-                        <div className="flex items-center gap-3">
-                            <span className="font-bold text-[var(--color-main)] text-xl group-hover:text-[var(--color-accent)] transition-colors">
-                                {nextTask.step.instruction}
-                            </span>
+                    {nextTask && (
+                        <div className="w-full bg-[var(--color-page)] border border-[var(--color-border-theme)] rounded-lg p-4 text-left group cursor-pointer hover:border-[var(--color-accent)] transition-colors"
+                             onClick={() => onForceStart && onForceStart(nextTask.runtimeId)}
+                        >
+                             <div className="flex justify-between items-center mb-2">
+                                <span className="text-xs font-bold text-[var(--color-muted)] uppercase">即将开始</span>
+                                {blockingTask && (
+                                    <span className="text-xs bg-[var(--color-accent)] text-white px-2 py-0.5 rounded-full font-bold animate-pulse">
+                                        等待中
+                                    </span>
+                                )}
+                             </div>
+                             <div className="flex items-center gap-3">
+                                <span className="text-lg font-bold text-[var(--color-main)]">{nextTask.step.instruction}</span>
+                                <ArrowRight className="h-4 w-4 text-[var(--color-muted)] group-hover:translate-x-1 transition-transform" />
+                             </div>
+                             <div className="mt-3 pt-3 border-t border-[var(--color-border-theme)]/50 flex justify-between items-center">
+                                 <span className="text-xs text-[var(--color-muted)]">预计耗时: {Math.round(nextTask.step.duration / 60)}分钟</span>
+                                 <button className="text-xs font-bold text-[var(--color-accent)] hover:underline flex items-center gap-1">
+                                    立即开始 <ChevronRight className="h-3 w-3" />
+                                 </button>
+                             </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <span className="text-xs bg-[var(--color-border-theme)] px-2 py-1 rounded text-[var(--color-muted)]">
-                                {Math.round(nextTask.step.duration / 60)}分
-                            </span>
-                            <ChevronRight className="h-4 w-4 text-[var(--color-muted)]" />
-                        </div>
-                    </div>
+                    )}
                 </div>
             )}
           </div>
