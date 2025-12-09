@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Check, Lock, Play, Pause, ChevronRight, Plus, RotateCcw } from "lucide-react"
+import { Check, Lock, Play, Pause, ChevronRight, Plus, RotateCcw, Flame, Clock } from "lucide-react"
 
 interface SmartCookingDialProps {
   duration: number
@@ -227,4 +227,3 @@ export function SmartCookingDial({
     </div>
   )
 }
-
