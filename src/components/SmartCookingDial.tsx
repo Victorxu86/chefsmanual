@@ -11,6 +11,8 @@ interface SmartCookingDialProps {
   onComplete: () => void
   onAddOneMinute: () => void
   onCancelComplete?: () => void // If auto-completing, ability to cancel
+  size?: number
+  instruction?: string // NEW: Instruction text to display inside
 }
 
 export function SmartCookingDial({
@@ -20,6 +22,8 @@ export function SmartCookingDial({
   isLocked,
   onComplete,
   onAddOneMinute,
+  size = 280, // Default size if not provided
+  instruction
 }: SmartCookingDialProps) {
   const [isHovering, setIsHovering] = useState(false)
   const [longPressProgress, setLongPressProgress] = useState(0)
@@ -74,8 +78,7 @@ export function SmartCookingDial({
   const currentColor = isLocked ? colors.locked : colors[type] || colors.cook
   
   // SVG Math
-  const size = 280
-  const strokeWidth = 12
+  const strokeWidth = size * 0.04 // Relative stroke width
   const center = size / 2
   const radius = (size - strokeWidth) / 2
   const circumference = 2 * Math.PI * radius
@@ -84,11 +87,11 @@ export function SmartCookingDial({
   const longPressOffset = circumference - (longPressProgress / 100) * circumference
 
   return (
-    <div className="flex flex-col items-center gap-6 select-none">
+    <div className="flex flex-col items-center gap-6 select-none relative w-full h-full flex items-center justify-center">
         
         {/* Main Dial */}
         <div 
-            className="relative cursor-pointer transition-transform active:scale-95 touch-none"
+            className="relative cursor-pointer transition-transform active:scale-95 touch-none max-w-full max-h-full aspect-square flex-shrink-0"
             style={{ width: size, height: size }}
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
@@ -98,7 +101,7 @@ export function SmartCookingDial({
             onMouseEnter={() => setIsHovering(true)}
         >
             {/* Background Track */}
-            <svg width={size} height={size} className="transform -rotate-90">
+            <svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} className="transform -rotate-90">
                 <circle
                     cx={center}
                     cy={center}
@@ -141,21 +144,28 @@ export function SmartCookingDial({
             </svg>
 
             {/* Center Content */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-12 text-center">
                 {isLocked ? (
-                    <div className="flex flex-col items-center gap-2 text-[var(--color-muted)] animate-pulse">
-                        <Lock className="h-12 w-12" />
-                        <span className="text-sm font-bold uppercase tracking-widest">Locked</span>
+                    <div className="flex flex-col items-center gap-4 text-[var(--color-muted)] animate-pulse">
+                        <Lock className="h-16 w-16" />
+                        <span className="text-xl font-bold uppercase tracking-widest">Locked</span>
                     </div>
                 ) : isFinished ? (
                     <div className="flex flex-col items-center animate-in zoom-in duration-300">
-                        <Check className={`h-20 w-20 ${type === 'cook' ? 'text-orange-500' : 'text-green-500'}`} />
-                        <span className="text-xs font-bold text-[var(--color-muted)] mt-2">点击或长按完成</span>
+                        <Check className={`h-24 w-24 ${type === 'cook' ? 'text-orange-500' : 'text-green-500'}`} />
+                        <span className="text-lg font-bold text-[var(--color-muted)] mt-4">点击或长按完成</span>
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center">
+                    <div className="flex flex-col items-center w-full">
+                        {/* Instruction Text (NEW) */}
+                        {instruction && (
+                            <h2 className="text-3xl md:text-4xl font-bold text-[var(--color-main)] leading-tight mb-4 line-clamp-3 w-full break-words">
+                                {instruction}
+                            </h2>
+                        )}
+
                         {/* Remaining Time */}
-                        <span className={`text-6xl font-mono font-bold tracking-tighter ${isLocked ? 'text-gray-300' : 'text-[var(--color-main)]'}`}>
+                        <span className={`text-6xl md:text-8xl font-mono font-bold tracking-tighter ${isLocked ? 'text-gray-300' : 'text-[var(--color-main)]'}`}>
                             {(() => {
                                 const remaining = Math.max(0, Math.ceil(duration - elapsed))
                                 const m = Math.floor(remaining / 60)
@@ -165,14 +175,14 @@ export function SmartCookingDial({
                         </span>
                         
                         {/* Context Hint */}
-                        <div className="mt-2 text-xs font-bold uppercase tracking-widest text-[var(--color-muted)] flex items-center gap-1 opacity-70">
+                        <div className="mt-4 text-sm font-bold uppercase tracking-widest text-[var(--color-muted)] flex items-center gap-2 opacity-70">
                             {longPressProgress > 0 ? (
                                 <span>释放取消</span>
                             ) : (
                                 <>
-                                    {type === 'cook' && <Flame className="h-3 w-3" />}
-                                    {type === 'prep' && <Check className="h-3 w-3" />}
-                                    {type === 'wait' && <Clock className="h-3 w-3" />}
+                                    {type === 'cook' && <Flame className="h-4 w-4" />}
+                                    {type === 'prep' && <Check className="h-4 w-4" />}
+                                    {type === 'wait' && <Clock className="h-4 w-4" />}
                                     <span>长按跳过</span>
                                 </>
                             )}
@@ -183,7 +193,7 @@ export function SmartCookingDial({
         </div>
 
         {/* Action Buttons (Appears when finished or nearly finished) */}
-        <div className={`flex items-center gap-8 transition-opacity duration-500 ${isFinished || isLocked ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        <div className={`absolute bottom-0 translate-y-24 flex items-center gap-12 transition-opacity duration-500 ${isFinished || isLocked ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
             {/* Add Time Button */}
             {!isLocked && (
                 <button
@@ -191,12 +201,12 @@ export function SmartCookingDial({
                         e.stopPropagation()
                         onAddOneMinute()
                     }}
-                    className="flex flex-col items-center gap-1 text-[var(--color-muted)] hover:text-[var(--color-main)] transition-colors group"
+                    className="flex flex-col items-center gap-2 text-[var(--color-muted)] hover:text-[var(--color-main)] transition-colors group"
                 >
-                    <div className="w-12 h-12 rounded-full border border-[var(--color-border-theme)] flex items-center justify-center bg-[var(--color-page)] group-hover:border-[var(--color-accent)] group-hover:bg-white shadow-sm">
-                        <Plus className="h-5 w-5" />
+                    <div className="w-16 h-16 rounded-full border border-[var(--color-border-theme)] flex items-center justify-center bg-[var(--color-page)] group-hover:border-[var(--color-accent)] group-hover:bg-white shadow-sm">
+                        <Plus className="h-6 w-6" />
                     </div>
-                    <span className="text-[10px] font-bold">+1 分钟</span>
+                    <span className="text-xs font-bold">+1 分钟</span>
                 </button>
             )}
 
@@ -207,23 +217,16 @@ export function SmartCookingDial({
                         e.stopPropagation()
                         onComplete()
                     }}
-                    className="flex flex-col items-center gap-1 text-[var(--color-accent)] hover:scale-105 transition-transform"
+                    className="flex flex-col items-center gap-2 text-[var(--color-accent)] hover:scale-105 transition-transform"
                 >
-                    <div className="w-16 h-16 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/30">
-                        <ChevronRight className="h-8 w-8 ml-0.5" />
+                    <div className="w-20 h-20 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/30">
+                        <ChevronRight className="h-10 w-10 ml-0.5" />
                     </div>
-                    <span className="text-[10px] font-bold">下一步</span>
+                    <span className="text-xs font-bold">下一步</span>
                 </button>
             )}
         </div>
         
-        {/* Soft hint for long press during active state */}
-        {!isFinished && !isLocked && (
-             <p className="text-[10px] text-[var(--color-muted)] opacity-40 absolute bottom-0 translate-y-12">
-                长按圆环可强制结束
-             </p>
-        )}
-
     </div>
   )
 }

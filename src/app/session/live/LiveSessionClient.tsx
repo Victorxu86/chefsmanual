@@ -319,10 +319,30 @@ export function LiveSessionClient() {
   const handleForceStart = (runtimeId: string) => {
     setLiveState(prev => {
       const nextTasks = [...prev.tasks]
+      const targetTask = nextTasks.find(t => t.runtimeId === runtimeId)
+      if (!targetTask) return prev
+
+      // Find all PREVIOUS dependencies of this task that are NOT completed
+      const dependencies = nextTasks.filter(t => 
+        t.step.recipeId === targetTask.step.recipeId && 
+        t.step.stepOrder < targetTask.step.stepOrder &&
+        t.status !== 'completed'
+      )
+
+      // Mark dependencies as completed
+      dependencies.forEach(dep => {
+          const idx = nextTasks.indexOf(dep)
+          if (idx !== -1) {
+              nextTasks[idx] = {
+                  ...dep,
+                  status: 'completed',
+                  actualEndTime: prev.elapsedSeconds // Mark as done now
+              }
+          }
+      })
+
+      // Start target task
       const taskIndex = nextTasks.findIndex(t => t.runtimeId === runtimeId)
-      if (taskIndex === -1) return prev
-      
-      // Force activate immediately
       nextTasks[taskIndex] = {
           ...nextTasks[taskIndex],
           forceActive: true,
@@ -330,7 +350,6 @@ export function LiveSessionClient() {
           actualStartTime: prev.elapsedSeconds
       }
       
-      // Update assignments
       const nextChefs = updateChefAssignments(nextTasks, prev.chefs, prev.elapsedSeconds)
       return { ...prev, tasks: nextTasks, chefs: nextChefs }
     })
@@ -548,61 +567,40 @@ function ChefView({ chef, allTasks, elapsedSeconds, onComplete, onAddOneMinute, 
           
           <div className="flex-1 flex flex-col justify-center items-center gap-8 mt-8">
             {currentTask ? (
-                <div className={`w-full ${isSingleMode ? 'max-w-3xl' : 'max-w-md'} animate-in zoom-in-95 duration-300`}>
-                    {/* Active Task Card */}
-                    <div className={`bg-white border-2 border-[var(--color-accent)] rounded-[var(--radius-theme)] shadow-xl relative overflow-hidden group transition-all ${isSingleMode ? 'p-12' : 'p-8'}`}>
-                        <div className="absolute top-0 left-0 w-full h-1 bg-[var(--color-accent)]" />
+                <div className={`w-full h-full flex flex-col items-center justify-center animate-in zoom-in-95 duration-300`}>
+                    
+                    {/* Main UI Container: Removed Card, now centered Dial */}
+                    <div className="flex flex-col items-center gap-8 relative w-full max-w-[600px] aspect-square flex-shrink-0">
                         
-                        {/* Recipe Tag */}
-                        <div className="absolute top-4 right-4 px-2 py-1 bg-[var(--color-accent-light)]/20 text-[var(--color-accent)] text-xs font-bold rounded">
-                            当前任务
-                        </div>
-
-                        <div className="mb-4">
-                            <div className="flex items-center gap-3 mb-4 text-[var(--color-muted)]">
-                                {currentTask.step.type === 'cook' ? <Flame className="h-6 w-6 text-orange-500" /> : <CheckCircle className="h-6 w-6 text-green-500" />}
-                                <span className="uppercase font-bold text-sm tracking-wider">{
-                                    currentTask.step.type === 'cook' ? '烹饪' : 
-                                    currentTask.step.type === 'prep' ? '备菜' : 
-                                    currentTask.step.type === 'wait' ? '等待' : 
-                                    currentTask.step.type === 'serve' ? '装盘' : currentTask.step.type
-                                }</span>
-                            </div>
-                            <h2 className={`${isSingleMode ? 'text-5xl' : 'text-4xl'} font-bold text-[var(--color-main)] leading-tight mb-4`}>
-                                {currentTask.step.instruction}
-                            </h2>
-                            
-                            {/* Contextual Tip (Dynamic) */}
-                            {getContextTip(currentTask) ? (
-                                <div className="flex items-start gap-2 text-sm text-[var(--color-muted)] bg-[var(--color-page)] p-4 rounded-lg border border-[var(--color-border-theme)]/50 shadow-inner">
-                                    <AlertCircle className="h-5 w-5 text-[var(--color-accent)] shrink-0 mt-0.5" />
+                        {/* Contextual Tip Floating Top */}
+                        {getContextTip(currentTask) && (
+                            <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-full text-center">
+                                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--color-card)] border border-[var(--color-border-theme)] shadow-sm text-sm text-[var(--color-muted)] animate-in slide-in-from-top-2 fade-in">
+                                    <AlertCircle className="h-4 w-4 text-[var(--color-accent)]" />
                                     <span>{getContextTip(currentTask)}</span>
                                 </div>
-                            ) : null}
-                        </div>
+                            </div>
+                        )}
 
-                        {/* NEW: Smart Dial Integration */}
-                        <div className="flex justify-center mb-6">
-                            <SmartCookingDial 
-                                duration={currentTask.step.duration + (currentTask.manualDurationAddon || 0)}
-                                elapsed={elapsedSeconds - currentTask.actualStartTime}
-                                type={currentTask.step.type}
-                                isLocked={false} // Active task is never locked
-                                onComplete={() => onComplete(currentTask.runtimeId)}
-                                onAddOneMinute={() => onAddOneMinute(currentTask.runtimeId)}
-                            />
-                        </div>
+                        <SmartCookingDial 
+                            duration={currentTask.step.duration + (currentTask.manualDurationAddon || 0)}
+                            elapsed={elapsedSeconds - currentTask.actualStartTime}
+                            type={currentTask.step.type}
+                            isLocked={false} 
+                            onComplete={() => onComplete(currentTask.runtimeId)}
+                            onAddOneMinute={() => onAddOneMinute(currentTask.runtimeId)}
+                            size={500} // Large responsive size, handled by CSS mostly but baseline 500
+                            instruction={currentTask.step.instruction}
+                        />
 
-                        {/* Undo Link */}
-                        <div className="text-center">
-                            <button 
-                                onClick={onUndo}
-                                className="text-xs text-[var(--color-muted)] hover:text-[var(--color-accent)] hover:underline flex items-center justify-center gap-1 mx-auto"
-                            >
-                                <ChevronLeft className="h-3 w-3" />
-                                返回上一步
-                            </button>
-                        </div>
+                        {/* Undo Link Floating Bottom */}
+                        <button 
+                            onClick={onUndo}
+                            className="absolute -bottom-12 left-1/2 -translate-x-1/2 text-xs text-[var(--color-muted)] hover:text-[var(--color-accent)] hover:underline flex items-center justify-center gap-1"
+                        >
+                            <ChevronLeft className="h-3 w-3" />
+                            返回上一步
+                        </button>
                     </div>
                 </div>
             ) : (
