@@ -27,6 +27,8 @@ export interface ScheduledBlock {
   resourceId: string 
 }
 
+export type ScheduleMode = 'aggressive' | 'relaxed';
+
 // 资源池定义
 interface ResourcePool {
   chef: number 
@@ -124,13 +126,20 @@ class ResourceTimeline {
     // Sort by start time ascending
     return futureTasks.sort((a, b) => a.start - b.start)[0]
   }
+
+  // Helper: Get earliest start time of any task
+  getEarliestStartTime(): number {
+    if (this.occupied.length === 0) return 0
+    return Math.min(...this.occupied.map(o => o.start))
+  }
 }
 
 export class KitchenScheduler {
   private resources: ResourcePool
   private resourceStates: Record<string, ResourceTimeline[]> = {}
+  private mode: ScheduleMode = 'relaxed' // Default to relaxed
 
-  constructor(resources: Partial<ResourcePool> = {}) {
+  constructor(resources: Partial<ResourcePool> = {}, mode: ScheduleMode = 'relaxed') {
     this.resources = {
       chef: 1,
       stove: 2,
@@ -139,6 +148,7 @@ export class KitchenScheduler {
       bowl: 2,
       ...resources
     }
+    this.mode = mode
   }
 
   private initResourceStates() {
@@ -157,13 +167,6 @@ export class KitchenScheduler {
     const outputBlocks: ScheduledBlock[] = []
 
     // 1. 预处理：备料合并 (Ingredient Merging)
-    // 扫描所有 "切/洗" 类的 prep 步骤
-    // 如果发现多个菜谱都有 "切葱" 或 "切蒜"，将它们合并成一个 "统一备料" 任务
-    // 并将这个新任务作为这些菜谱第一步的前置依赖 (目前 Scheduler 不支持显式依赖，我们通过将其放在最早的菜谱链头来实现)
-    
-    // (由于 Scheduler 目前的架构是基于 Recipe Chain 的倒序排课，完全独立的 Merged Task 比较难插入)
-    // (策略：我们将合并后的任务挂载到 "最先需要它的那个菜谱" 上，并增加时长)
-
     const mergedPrepSteps: any[] = []
     const processedRecipes = recipes.map(r => ({ ...r, steps: [...r.steps] })) // Deep copy steps
 
@@ -175,7 +178,6 @@ export class KitchenScheduler {
         if (step.step_type !== 'prep') return
         
         // 识别关键词：切+食材名
-        // 简单实现：提取 "切" 后面的两个字作为 key (e.g., "切葱" -> "切葱")
         const match = step.instruction.match(/(切|洗|剥|拍)([\u4e00-\u9fa5]{1,2})/)
         if (match) {
           const key = match[0] // e.g. "切葱", "切姜"
@@ -189,26 +191,21 @@ export class KitchenScheduler {
     Object.entries(prepGroups).forEach(([key, items]) => {
       if (items.length < 2) return // 只有一个就不合并
 
-      // 1. 计算总时长 (合并后时长 = 总时长 * 0.7，体现规模效应，但至少比单次长)
+      // 1. 计算总时长
       const totalDuration = items.reduce((sum, item) => sum + item.step.duration_seconds, 0)
       const mergedDuration = Math.ceil(totalDuration * 0.7)
 
-      // 2. 找到 "宿主" (Host)：我们把合并任务挂载到第一道需要这个的菜谱上
-      // 为了不破坏倒序逻辑，我们挂载到 items[0] (通常是第一个菜谱)
+      // 2. 找到 "宿主" (Host)
       const hostItem = items[0]
       const hostRecipe = processedRecipes[hostItem.recipeIndex]
       const hostStep = hostRecipe.steps[hostItem.stepIndex]
 
-      // 修改宿主步骤：
-      // - 名字改为 "统一备料：切葱 (含 x, y 菜)"
-      // - 时长改为 mergedDuration
+      // 修改宿主步骤
       hostStep.instruction = `[统一] ${key} (共${items.length}道菜)`
       hostStep.duration_seconds = mergedDuration
-      hostStep.is_active = true // 统一备料通常是 active 的
+      hostStep.is_active = true
 
       // 3. 废除其他步骤 (Guests)
-      // 将它们标记为 "virtual" (虚拟步骤)，时长为0，或者直接从数组中移除
-      // 这里我们选择将它们标记为 duration=0 的虚拟步，并在名字上注明，以便追踪
       for (let i = 1; i < items.length; i++) {
         const guestItem = items[i]
         const guestRecipe = processedRecipes[guestItem.recipeIndex]
@@ -217,7 +214,6 @@ export class KitchenScheduler {
         guestStep.instruction = `(已合并至${hostRecipe.title})`
         guestStep.duration_seconds = 0 
         guestStep.is_active = false
-        // 实际上，我们在 Scheduler 中应该跳过 duration=0 的步骤
       }
     })
 
@@ -229,14 +225,11 @@ export class KitchenScheduler {
         recipeId: recipe.id,
         category,
         steps: recipe.steps
-          .filter((s: any) => s.duration_seconds > 0) // 过滤掉被合并的虚拟步骤
+          .filter((s: any) => s.duration_seconds > 0)
           .map((s: any) => {
           let isActive = s.is_active
-          // 优化：使用 includes 而不是 startsWith，以便识别 "转小火炖" 中的 "炖"
           const actionEntry = Object.values(ACTIONS).find((a: any) => {
-            // 1. 优先匹配 label 相同的
             if (s.instruction.includes(a.label)) return true
-            // 2. 也可以匹配 id (英文key)
             if (a.id && s.instruction.toLowerCase().includes(a.id.toLowerCase())) return true
             return false
           })
@@ -255,7 +248,7 @@ export class KitchenScheduler {
             type: s.step_type,
             isActive: isActive,
             equipment: s.equipment,
-            temp: s.temperature_c, // 从数据源读取温度
+            temp: s.temperature_c, 
             isInterruptible: s.is_interruptible,
             _actionKey: (actionEntry as any)?.id
           } as SchedulerStep
@@ -263,8 +256,7 @@ export class KitchenScheduler {
       }
     })
 
-    // 排序策略：先排对齐时间要求最严格的 (main)，再排灵活的 (cold, soup)
-    // 优先级: Main > Staple > Soup > Cold > Dessert
+    // 排序策略
     const priorityMap: Record<string, number> = {
       'main': 5,
       'staple': 4,
@@ -277,98 +269,96 @@ export class KitchenScheduler {
     const sortedChains = allTaskChains.sort((a, b) => {
       const pA = priorityMap[a.category as string] || 3
       const pB = priorityMap[b.category as string] || 3
-      if (pA !== pB) return pB - pA // 优先级高的先排
+      if (pA !== pB) return pB - pA 
       
-      // 同优先级，按总时长降序
       const durationA = a.steps.reduce((sum: number, s: any) => sum + s.duration, 0)
       const durationB = b.steps.reduce((sum: number, s: any) => sum + s.duration, 0)
       return durationB - durationA
     })
 
-    for (const chain of sortedChains) {
-      // === 智能设定目标结束时间 ===
-      let lastStepEndTime = 0
-      
-      switch (chain.category) {
-        case 'cold': lastStepEndTime = -1800; break; // 提前30分钟做完
-        case 'soup': lastStepEndTime = -600; break;  // 提前10分钟做完
-        case 'dessert': lastStepEndTime = -1800; break; // 改为饭前30分钟做完
-        default: lastStepEndTime = 0; break; // 准点
-      }
+    // === RELAXED MODE LOGIC ===
+    // If Relaxed Mode is enabled, we split 'prep' steps from 'cook' steps.
+    // We schedule 'cook' chains normally (reverse from dinnertime).
+    // Then we schedule ALL 'prep' steps BEFORE the earliest cooking start time.
+    
+    // For Aggressive Mode (original), we schedule mixed chains directly.
 
-      for (let i = chain.steps.length - 1; i >= 0; i--) {
-        const step = chain.steps[i]
-        let proposedEnd = lastStepEndTime
-        let placed = false
+    if (this.mode === 'relaxed') {
+        // 1. Split chains into Cook-Only chains and Prep-Only pool
+        const cookChains: any[] = []
+        const prepTasks: { step: SchedulerStep, chainId: string }[] = []
 
-        while (!placed) {
-          const proposedStart = proposedEnd - step.duration
-          
-          const requirements = this.identifyRequirements(step)
-          const allocation = this.tryAllocate(step, requirements, proposedStart, proposedEnd)
+        sortedChains.forEach(chain => {
+            const cookSteps = chain.steps.filter((s: SchedulerStep) => s.type !== 'prep')
+            const chainPrepSteps = chain.steps.filter((s: SchedulerStep) => s.type === 'prep')
+            
+            // Push prep steps to pool
+            chainPrepSteps.forEach((s: SchedulerStep) => prepTasks.push({ step: s, chainId: chain.recipeId }))
 
-          if (allocation) {
-            // Buffer Logic: 增加任务间的缓冲时间
-            // 策略：
-            // 1. 基础 Buffer = 60秒 (1分钟)
-            // 2. 如果是 "cook" 类型且时长 > 10分钟，Buffer = 120秒 (2分钟)
-            // 3. "wait" 类型不需要 Buffer
-            // 4. 如果是同一厨师连续执行同一道菜的步骤，Buffer 可以减半 (30秒)
-            
-            let bufferSeconds = 60
-            if (step.type === 'wait') bufferSeconds = 0
-            else if (step.type === 'cook' && step.duration > 600) bufferSeconds = 120
+            // Keep cook steps as chain (preserving order)
+            if (cookSteps.length > 0) {
+                cookChains.push({
+                    ...chain,
+                    steps: cookSteps
+                })
+            }
+        })
 
-            // 检查是否是同一厨师连续操作 (简化版：如果是主厨且上一步也是主厨，减半)
-            // 由于这里是 allocation 阶段，我们只能基于当前分配做判断
-            // 但我们可以简单地给 prep 任务较小的 buffer
-            if (step.type === 'prep') bufferSeconds = 30
+        // 2. Schedule Cook Chains (Reverse Scheduling)
+        cookChains.forEach(chain => {
+           this.scheduleChain(chain, outputBlocks)
+        })
 
-            allocation.forEach(alloc => {
-              // 核心修改：占用时间延长到 end + bufferSeconds
-              // 这样下一个任务在检查 isAvailable 时，会发现这段时间（含Buffer）都被占用了
-              // 这里的 metadata 存储了当前任务的信息，用于未来的 Inertia Check
-              const metadata = {
-                type: step.type,
-                equipment: step.equipment,
-                instruction: step.instruction
-              }
-              
-              this.resourceStates[alloc.type][alloc.index].book(proposedStart, proposedEnd + bufferSeconds, alloc.load, step.temp, metadata)
-              
-              outputBlocks.push({
-                step,
-                startTime: proposedStart,
-                endTime: proposedEnd, // 视觉上 block 还是原长度，不包含 buffer
-                lane: alloc.type as any,
-                resourceId: `${alloc.type}_${alloc.index + 1}`
-              })
-            })
-            
-            // 关键：lastStepEndTime 也要相应前移，包含 buffer
-            // 因为我们是倒序排课，proposedStart 是任务开始时间
-            // 下一个（更早的）任务必须在 proposedStart 之前结束
-            // 所以不需要在这里修改 lastStepEndTime，因为 proposedStart 已经是占用的起点了
-            // Buffer 是加在任务 *之后* (时间轴的右侧)，也就是在 proposedEnd 之后
-            // 在倒序排课中，更早的任务（Step N-1）会在 Step N 的 Start 之前结束
-            // 所以这里的 Buffer 其实是加在了 Step N 和 Step N+1 之间 (如果按正序看)
-            
-            // 等等，倒序排课时：
-            // Step N (Late) -> Step N-1 (Early)
-            // 我们先排了 Step N，占用了 [Start, End]
-            // 然后排 Step N-1，它的 End 必须 <= Step N 的 Start
-            // 如果我们要加 Buffer，应该让 Step N-1 的 End <= Step N.Start - Buffer
-            
-            // 所以，我们应该更新 lastStepEndTime (它其实是下一个拟排任务的 proposedEnd 上限)
-            lastStepEndTime = proposedStart - bufferSeconds
-            
-            placed = true
-          } else {
-            proposedEnd -= 30 
-            if (proposedEnd < -86400) break; 
-          }
+        // 3. Find Global Cooking Start Time (The "Checkpoint")
+        let globalCookStart = 0
+        if (outputBlocks.length > 0) {
+            globalCookStart = Math.min(...outputBlocks.map(b => b.startTime))
         }
-      }
+
+        // Insert "Mise en place" Checkpoint
+        // Ideally a virtual task, but for now we just use the time boundary.
+        // We will schedule prep tasks backwards from (globalCookStart - buffer)
+        
+        let prepEndTimeAnchor = globalCookStart - 300 // 5 minutes buffer before cooking starts
+
+        // 4. Schedule Prep Tasks (Reverse Scheduling from Anchor)
+        // Group prep tasks by recipe to keep some sanity? Or just bulk them?
+        // Bulk is better for batching.
+        // Sort prep tasks: unified/merged first, then by recipe priority
+        
+        // Actually, since we schedule reverse, we process the LAST prep task first (closest to anchor)
+        // So we want to process "small prep" first, and "heavy prep" later (which ends up earlier in time)?
+        // No, in reverse scheduling:
+        // Anchor <- Task A <- Task B
+        // Task A is done right before Anchor.
+        
+        // Let's sort prep tasks so that "unified" ones are done first (early in time) -> last in reverse schedule?
+        // No, unified prep should be done very early.
+        // So they should be far from anchor.
+        
+        // Let's just process them.
+        prepTasks.sort((a, b) => {
+            // Put unified tasks (heavy duration) earlier in time -> later in array for reverse loop?
+            // Let's just stick to default order for now.
+             return 0
+        })
+
+        for (let i = prepTasks.length - 1; i >= 0; i--) {
+             const { step } = prepTasks[i]
+             this.scheduleSingleStep(step, prepEndTimeAnchor, outputBlocks, true) // true = update anchor
+             // Update anchor for next step?
+             // scheduleSingleStep finds the latest possible slot <= anchor.
+             // But if we want them sequential, we should update anchor.
+             // Actually, tryAllocate will find space. If we keep anchor fixed, it tries to parallelize prep.
+             // Relaxed mode -> Parallelize Prep is okay, but maybe we want serial for single chef?
+             // The resource timeline handles concurrency.
+        }
+
+    } else {
+        // === AGGRESSIVE MODE (Original Mixed Chains) ===
+        sortedChains.forEach(chain => {
+            this.scheduleChain(chain, outputBlocks)
+        })
     }
 
     if (outputBlocks.length > 0) {
@@ -380,6 +370,72 @@ export class KitchenScheduler {
     }
 
     return outputBlocks.sort((a, b) => a.startTime - b.startTime)
+  }
+
+  private scheduleChain(chain: any, outputBlocks: ScheduledBlock[]) {
+      // ... same logic as before, wrapped in function
+      let lastStepEndTime = 0
+      
+      switch (chain.category) {
+        case 'cold': lastStepEndTime = -1800; break; 
+        case 'soup': lastStepEndTime = -600; break;  
+        case 'dessert': lastStepEndTime = -1800; break; 
+        default: lastStepEndTime = 0; break; 
+      }
+
+      for (let i = chain.steps.length - 1; i >= 0; i--) {
+        const step = chain.steps[i]
+        lastStepEndTime = this.scheduleSingleStep(step, lastStepEndTime, outputBlocks)
+      }
+  }
+
+  private scheduleSingleStep(step: SchedulerStep, targetEndTime: number, outputBlocks: ScheduledBlock[], isPrepPhase: boolean = false): number {
+        let proposedEnd = targetEndTime
+        let placed = false
+        let finalStart = targetEndTime // fallback
+
+        while (!placed) {
+          const proposedStart = proposedEnd - step.duration
+          
+          const requirements = this.identifyRequirements(step)
+          const allocation = this.tryAllocate(step, requirements, proposedStart, proposedEnd)
+
+          if (allocation) {
+            let bufferSeconds = 60
+            if (step.type === 'wait') bufferSeconds = 0
+            else if (step.type === 'cook' && step.duration > 600) bufferSeconds = 120
+
+            if (step.type === 'prep') bufferSeconds = 30
+            // In Relaxed Mode Prep Phase, we might want even bigger buffers between preps? 
+            // Or smaller? Let's keep 30.
+
+            allocation.forEach(alloc => {
+              const metadata = {
+                type: step.type,
+                equipment: step.equipment,
+                instruction: step.instruction
+              }
+              
+              this.resourceStates[alloc.type][alloc.index].book(proposedStart, proposedEnd + bufferSeconds, alloc.load, step.temp, metadata)
+              
+              outputBlocks.push({
+                step,
+                startTime: proposedStart,
+                endTime: proposedEnd, 
+                lane: alloc.type as any,
+                resourceId: `${alloc.type}_${alloc.index + 1}`
+              })
+            })
+            
+            finalStart = proposedStart - bufferSeconds
+            placed = true
+          } else {
+            proposedEnd -= 30 
+            // Safety break
+            if (proposedEnd < -172800) break; // 48 hours
+          }
+        }
+        return finalStart
   }
 
   // ... (identifyRequirements, tryAllocate, check helpers 保持不变)
@@ -549,3 +605,4 @@ export class KitchenScheduler {
     return false
   }
 }
+
