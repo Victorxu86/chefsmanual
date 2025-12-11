@@ -1,11 +1,10 @@
 "use client"
 
 import React, { useEffect } from "react";
-import { Link } from "@/i18n/navigation";
+import Link from "next/link";
 import { ChefHat, Layers, Clock, Utensils, ArrowRight, Activity, LayoutDashboard, ShoppingBag, Calendar } from "lucide-react";
 import { useMode } from "@/context/ModeContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { useTranslations } from "next-intl";
 
 export function LandingClient({ 
   isLoggedIn, 
@@ -15,7 +14,6 @@ export function LandingClient({
   children: React.ReactNode 
 }) {
   const { mode } = useMode();
-  const t = useTranslations('Landing');
 
   return (
     <div className="min-h-screen transition-colors duration-700 relative overflow-hidden bg-[var(--color-page)] text-[var(--color-main)]">
@@ -40,8 +38,8 @@ export function LandingClient({
             
             <div className="flex items-center gap-6">
               <div className="hidden md:flex items-center gap-6 text-sm font-medium text-[var(--color-muted)]">
-                <Link href="#features" className="hover:text-[var(--color-main)] transition-colors">{t('nav_features')}</Link>
-                <Link href="#pricing" className="hover:text-[var(--color-main)] transition-colors">{t('nav_pricing')}</Link>
+                <Link href="#features" className="hover:text-[var(--color-main)] transition-colors">功能</Link>
+                <Link href="#pricing" className="hover:text-[var(--color-main)] transition-colors">定价</Link>
               </div>
               
               <div className="h-6 w-px bg-[var(--color-border-theme)] mx-2" />
@@ -53,14 +51,14 @@ export function LandingClient({
                   href="/dashboard"
                   className="ml-4 px-5 py-2 rounded-[var(--radius-theme)] bg-[var(--color-main)] text-[var(--color-page)] text-sm font-bold hover:opacity-90 transition-all shadow-lg hover:shadow-xl"
                 >
-                  {t('nav_dashboard')}
+                  进入控制台
                 </Link>
               ) : (
                 <Link
                   href="/login"
                   className="ml-4 px-5 py-2 rounded-[var(--radius-theme)] bg-[var(--color-main)] text-[var(--color-page)] text-sm font-bold hover:opacity-90 transition-all shadow-lg hover:shadow-xl"
                 >
-                  {t('nav_login')}
+                  登录 / 注册
                 </Link>
               )}
             </div>
@@ -177,36 +175,36 @@ export function LandingClient({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <h2 className="text-3xl font-bold tracking-tight mb-4 text-[var(--color-main)]">
-              <span className="personal-text">{t('features_title_personal')}</span>
-              <span className="business-text hidden">{t('features_title_business')}</span>
+              <span className="personal-text">为什么选择 ChefsManual？</span>
+              <span className="business-text hidden">企业级解决方案</span>
             </h2>
             <p className="text-[var(--color-muted)]">
-              <span className="personal-text">{t('features_subtitle_personal')}</span>
-              <span className="business-text hidden">{t('features_subtitle_business')}</span>
+              <span className="personal-text">我们不仅仅是一个菜谱 App，而是您的智能厨房大脑。</span>
+              <span className="business-text hidden">从标准化 SOP 到实时厨房调度，全方位提升运营效率。</span>
             </p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             <FeatureCard 
               icon={<Layers className="h-8 w-8 text-blue-600" />}
-              title={t('feature_1_title')}
-              titleBusiness={t('feature_1_business')}
-              description={t('feature_1_desc')}
-              descriptionBusiness={t('feature_1_desc_business')}
+              title="结构化菜谱"
+              titleBusiness="SOP 数字化"
+              description="告别模糊的“少许”和“适量”。我们将每道菜拆解为带有精确时间、温度和设备需求的数据流。"
+              descriptionBusiness="将纸质配方转变为云端可执行数据。支持版本控制、权限管理和即时分发。"
             />
             <FeatureCard 
               icon={<Clock className="h-8 w-8 text-orange-600" />}
-              title={t('feature_2_title')}
-              titleBusiness={t('feature_2_business')}
-              description={t('feature_2_desc')}
-              descriptionBusiness={t('feature_2_desc_business')}
+              title="多菜智能调度"
+              titleBusiness="流水线优化"
+              description="做三菜一汤不再手忙脚乱。系统自动计算最佳统筹路径，多线程完美同步出锅。"
+              descriptionBusiness="算法自动计算各工位负载，优化出餐顺序，减少等待时间，提升翻台率。"
             />
             <FeatureCard 
               icon={<ChefHat className="h-8 w-8 text-stone-800 dark:text-white" />}
-              title={t('feature_3_title')}
-              titleBusiness={t('feature_3_business')}
-              description={t('feature_3_desc')}
-              descriptionBusiness={t('feature_3_desc_business')}
+              title="名厨配方市场"
+              titleBusiness="员工培训系统"
+              description="直接订阅米其林主厨的独家配方，在家也能复刻顶级餐厅的味道。"
+              descriptionBusiness="新员工通过 iPad 边看边做，降低培训成本，确保不同分店口味一致。"
             />
           </div>
         </div>

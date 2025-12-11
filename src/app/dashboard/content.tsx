@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { useMode } from "@/context/ModeContext"
 import { Plus, Clock, ChefHat, ArrowRight, Activity, Utensils, History, Sparkles } from "lucide-react"
-import { useTranslations } from "next-intl"
 
 interface Recipe {
   id: string
@@ -34,7 +33,6 @@ interface DashboardContentProps {
 
 export function DashboardContent({ userName, stats, recentRecipes, recentActivity, recommendations }: DashboardContentProps) {
   const { mode } = useMode()
-  const t = useTranslations('Dashboard')
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -42,10 +40,12 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold text-[var(--color-main)] tracking-tight mb-2">
-            {mode === "personal" ? t('welcome_personal', { name: userName }) : t('welcome_business', { name: userName })}
+            {mode === "personal" ? `早安, ${userName}` : `COMMAND_CENTER: ${userName}`}
           </h1>
           <p className="text-[var(--color-muted)]">
-            {mode === "personal" ? t('subtitle_personal') : t('subtitle_business')}
+            {mode === "personal" 
+              ? "今天准备烹饪点什么特别的？" 
+              : "System operational. All units standby."}
           </p>
         </div>
         <div className="flex gap-3">
@@ -54,7 +54,7 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
             className="flex items-center gap-2 px-6 py-3 rounded-[var(--radius-theme)] bg-[var(--color-accent)] text-white font-bold shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
           >
             <Plus className="h-5 w-5" />
-            <span>{mode === "personal" ? t('btn_new_recipe') : t('btn_new_sop')}</span>
+            <span>{mode === "personal" ? "新建菜谱" : "NEW_SOP_ENTRY"}</span>
           </Link>
         </div>
       </div>
@@ -71,15 +71,17 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
                 <ChefHat className="h-6 w-6" />
               </div>
               <h3 className="text-2xl font-bold text-[var(--color-main)]">
-                {mode === "personal" ? t('card_start_title') : t('card_start_title_biz')}
+                {mode === "personal" ? "开始智能烹饪" : "INITIATE_SESSION"}
               </h3>
               <p className="text-[var(--color-muted)] max-w-sm">
-                {mode === "personal" ? t('card_start_desc') : t('card_start_desc_biz')}
+                {mode === "personal" 
+                  ? "选择多道菜谱，我们将为您自动生成最佳的统筹时间表。" 
+                  : "Select active SOPs for kitchen synchronization processing."}
               </p>
             </div>
             <div className="mt-8">
               <Link href="/session" className="flex items-center gap-2 text-[var(--color-accent)] font-bold hover:gap-3 transition-all">
-                {t('link_select_recipes')} <ArrowRight className="h-5 w-5" />
+                选择菜谱 <ArrowRight className="h-5 w-5" />
               </Link>
             </div>
           </div>
@@ -89,11 +91,11 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
         <div className="col-span-1 md:col-span-1 row-span-1 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] p-6 hover:border-[var(--color-accent)] transition-colors duration-300">
           <div className="flex items-center justify-between mb-4">
             <Activity className="h-5 w-5 text-[var(--color-muted)]" />
-            <span className="text-xs font-mono text-[var(--color-muted)]">{t('stat_weekly_label')}</span>
+            <span className="text-xs font-mono text-[var(--color-muted)]">WEEKLY_STATS</span>
           </div>
           <div className="text-3xl font-mono font-bold text-[var(--color-main)] mb-1">{stats.weeklyCount}</div>
           <div className="text-sm text-[var(--color-muted)]">
-            {mode === "personal" ? t('stat_weekly_desc') : t('stat_weekly_desc_biz')}
+            {mode === "personal" ? "本周烹饪完成" : "Completed Cycles"}
           </div>
         </div>
 
@@ -102,7 +104,7 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
           <div className="absolute top-0 right-0 p-32 bg-[var(--color-accent)] blur-[60px] opacity-20 rounded-full translate-x-10 -translate-y-10" />
           <Clock className="h-6 w-6 mb-4 opacity-80" />
           <div>
-            <div className="text-sm opacity-60 mb-1">{mode === "personal" ? t('stat_time_saved_label') : t('stat_time_saved_label_biz')}</div>
+            <div className="text-sm opacity-60 mb-1">{mode === "personal" ? "累计节省时间" : "TOTAL_TIME_SAVED"}</div>
             <div className="text-2xl font-mono font-bold">
                 {Math.floor(stats.totalSavedMinutes / 60)}h {stats.totalSavedMinutes % 60}m
             </div>
@@ -115,11 +117,11 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
             <div className="flex items-center gap-2">
               <Utensils className="h-5 w-5 text-[var(--color-accent)]" />
               <h4 className="font-bold text-[var(--color-main)]">
-                {mode === "personal" ? t('card_recipes_title') : t('card_recipes_title_biz')}
+                {mode === "personal" ? "我的菜谱" : "SOP_DATABASE"}
               </h4>
             </div>
             <Link href="/recipes" className="text-xs font-medium text-[var(--color-muted)] hover:text-[var(--color-main)]">
-              {t('link_view_all')}
+              VIEW ALL
             </Link>
           </div>
           
@@ -132,7 +134,7 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
                     </Link>
                 ))
             ) : (
-                <div className="text-center py-4 text-[var(--color-muted)]">{t('empty_recipes')}</div>
+                <div className="text-center py-4 text-[var(--color-muted)]">暂无菜谱</div>
             )}
           </div>
 
@@ -141,7 +143,7 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
             className="w-full py-2.5 rounded-[var(--radius-theme)] border-2 border-dashed border-[var(--color-border-theme)] text-[var(--color-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] font-bold flex items-center justify-center gap-2 transition-all group"
           >
               <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" />
-              {mode === "personal" ? t('btn_new_recipe') : t('btn_new_sop')}
+              {mode === "personal" ? "新建菜谱" : "CREATE_NEW_ENTRY"}
           </Link>
         </div>
 
@@ -151,7 +153,7 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
             <div className="flex items-center gap-2">
               <History className="h-5 w-5 text-[var(--color-muted)]" />
               <h4 className="font-bold text-[var(--color-main)]">
-                {mode === "personal" ? t('card_history_title') : t('card_history_title_biz')}
+                {mode === "personal" ? "烹饪历史" : "SESSION_LOGS"}
               </h4>
             </div>
           </div>
@@ -177,7 +179,7 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
              </div>
           ) : (
             <div className="text-center py-4 text-[var(--color-muted)] text-sm">
-                {t('empty_history')}
+                暂无记录
             </div>
           )}
         </div>
@@ -190,12 +192,12 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
                         <Sparkles className="h-5 w-5" />
                     </div>
                     <h4 className="font-bold text-[var(--color-main)]">
-                        {mode === "personal" ? t('card_menu_title') : t('card_menu_title_biz')}
+                        {mode === "personal" ? "菜单生成器" : "MENU_ASSET_GEN"}
                     </h4>
                 </div>
                 
                 <p className="text-sm text-[var(--color-muted)] mb-6">
-                    {mode === "personal" ? t('card_menu_desc') : t('card_menu_desc_biz')}
+                    {mode === "personal" ? "为您的晚宴定制专属精美菜单图片。" : "Generate printable menu assets for distribution."}
                 </p>
             </div>
 
@@ -203,7 +205,7 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
                 href="/menu-generator"
                 className="w-full py-2.5 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-main)] text-[var(--color-main)] font-bold flex items-center justify-center gap-2 hover:bg-[var(--color-main)] hover:text-[var(--color-page)] transition-all"
             >
-                {t('btn_generate')}
+                去生成
                 <ArrowRight className="h-4 w-4" />
             </Link>
         </div>
@@ -216,7 +218,7 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
             <div className="flex items-center gap-2 mb-6 relative z-10">
                 <Sparkles className="h-5 w-5 text-[var(--color-accent)]" />
                 <h4 className="font-bold text-[var(--color-main)]">
-                {mode === "personal" ? t('card_recommend_title') : t('card_recommend_title_biz')}
+                {mode === "personal" ? "推荐组合" : "OPTIMIZED_SET"}
                 </h4>
             </div>
 
@@ -233,12 +235,12 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
                     {recommendations.map(r => r.title).join(" + ")}
                 </p>
                 <p className="text-sm text-[var(--color-muted)] mb-4">
-                    {t('recommend_time', { minutes: Math.max(...recommendations.map(r => r.total_time_minutes || 30)) })}
+                    预计耗时: {Math.max(...recommendations.map(r => r.total_time_minutes || 30))} 分钟 (智能并行)
                 </p>
                 </div>
             ) : (
                 <div className="text-sm text-[var(--color-muted)] py-4 relative z-10">
-                    {t('recommend_hint')}
+                    创建更多不同种类的菜谱 (主食、汤、凉菜)，解锁智能组合推荐。
                 </div>
             )}
           </div>
@@ -248,7 +250,7 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
                 href={`/session?recipes=${recommendations.map(r => r.id).join(',')}`}
                 className="w-full py-2.5 rounded-[var(--radius-theme)] bg-[var(--color-main)] text-[var(--color-page)] font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity relative z-10"
             >
-                {t('btn_one_click_start')}
+                一键开始
                 <ArrowRight className="h-4 w-4" />
             </Link>
           )}
