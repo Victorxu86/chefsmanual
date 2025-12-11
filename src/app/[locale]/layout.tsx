@@ -5,6 +5,7 @@ import { ModeProvider } from "@/context/ModeContext";
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { LanguageSelectorModal } from "@/components/LanguageSelectorModal";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -45,6 +46,7 @@ export default async function LocaleLayout({
         <NextIntlClientProvider messages={messages}>
           <ModeProvider>
             {children}
+            <LanguageSelectorModal />
           </ModeProvider>
         </NextIntlClientProvider>
       </body>
