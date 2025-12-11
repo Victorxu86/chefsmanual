@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { ChefHat, Clock, Flame, ArrowRight, Edit2, Trash2 } from "lucide-react"
-import { deleteRecipe } from "@/app/create-recipe/deleteAction"
+import { deleteRecipe } from "@/app/[locale]/create-recipe/deleteAction"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 
