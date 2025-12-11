@@ -40,12 +40,12 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold text-[var(--color-main)] tracking-tight mb-2">
-            {mode === "personal" ? `早安, ${userName}` : `COMMAND_CENTER: ${userName}`}
+            {mode === "personal" ? `早安, ${userName}` : `控制台: ${userName}`}
           </h1>
           <p className="text-[var(--color-muted)]">
             {mode === "personal" 
               ? "今天准备烹饪点什么特别的？" 
-              : "System operational. All units standby."}
+              : "系统运行正常，随时待命。"}
           </p>
         </div>
         <div className="flex gap-3">
@@ -54,7 +54,7 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
             className="flex items-center gap-2 px-6 py-3 rounded-[var(--radius-theme)] bg-[var(--color-accent)] text-white font-bold shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
           >
             <Plus className="h-5 w-5" />
-            <span>{mode === "personal" ? "新建菜谱" : "NEW_SOP_ENTRY"}</span>
+            <span>{mode === "personal" ? "新建菜谱" : "新建 SOP"}</span>
           </Link>
         </div>
       </div>
@@ -71,12 +71,12 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
                 <ChefHat className="h-6 w-6" />
               </div>
               <h3 className="text-2xl font-bold text-[var(--color-main)]">
-                {mode === "personal" ? "开始智能烹饪" : "INITIATE_SESSION"}
+                {mode === "personal" ? "开始智能烹饪" : "开始执行"}
               </h3>
               <p className="text-[var(--color-muted)] max-w-sm">
                 {mode === "personal" 
                   ? "选择多道菜谱，我们将为您自动生成最佳的统筹时间表。" 
-                  : "Select active SOPs for kitchen synchronization processing."}
+                  : "选择活跃的 SOP 以进行厨房同步处理。"}
               </p>
             </div>
             <div className="mt-8">
@@ -91,11 +91,11 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
         <div className="col-span-1 md:col-span-1 row-span-1 rounded-[var(--radius-theme)] bg-[var(--color-card)] border border-[var(--color-border-theme)] p-6 hover:border-[var(--color-accent)] transition-colors duration-300">
           <div className="flex items-center justify-between mb-4">
             <Activity className="h-5 w-5 text-[var(--color-muted)]" />
-            <span className="text-xs font-mono text-[var(--color-muted)]">WEEKLY_STATS</span>
+            <span className="text-xs font-mono text-[var(--color-muted)]">{mode === "personal" ? "周度统计" : "周期统计"}</span>
           </div>
           <div className="text-3xl font-mono font-bold text-[var(--color-main)] mb-1">{stats.weeklyCount}</div>
           <div className="text-sm text-[var(--color-muted)]">
-            {mode === "personal" ? "本周烹饪完成" : "Completed Cycles"}
+            {mode === "personal" ? "本周烹饪完成" : "完成周期"}
           </div>
         </div>
 
@@ -104,7 +104,7 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
           <div className="absolute top-0 right-0 p-32 bg-[var(--color-accent)] blur-[60px] opacity-20 rounded-full translate-x-10 -translate-y-10" />
           <Clock className="h-6 w-6 mb-4 opacity-80" />
           <div>
-            <div className="text-sm opacity-60 mb-1">{mode === "personal" ? "累计节省时间" : "TOTAL_TIME_SAVED"}</div>
+            <div className="text-sm opacity-60 mb-1">累计节省时间</div>
             <div className="text-2xl font-mono font-bold">
                 {Math.floor(stats.totalSavedMinutes / 60)}h {stats.totalSavedMinutes % 60}m
             </div>
@@ -117,11 +117,11 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
             <div className="flex items-center gap-2">
               <Utensils className="h-5 w-5 text-[var(--color-accent)]" />
               <h4 className="font-bold text-[var(--color-main)]">
-                {mode === "personal" ? "我的菜谱" : "SOP_DATABASE"}
+                {mode === "personal" ? "我的菜谱" : "SOP 数据库"}
               </h4>
             </div>
             <Link href="/recipes" className="text-xs font-medium text-[var(--color-muted)] hover:text-[var(--color-main)]">
-              VIEW ALL
+              查看全部
             </Link>
           </div>
           
@@ -143,7 +143,7 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
             className="w-full py-2.5 rounded-[var(--radius-theme)] border-2 border-dashed border-[var(--color-border-theme)] text-[var(--color-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] font-bold flex items-center justify-center gap-2 transition-all group"
           >
               <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" />
-              {mode === "personal" ? "新建菜谱" : "CREATE_NEW_ENTRY"}
+              {mode === "personal" ? "新建菜谱" : "新建条目"}
           </Link>
         </div>
 
@@ -153,7 +153,7 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
             <div className="flex items-center gap-2">
               <History className="h-5 w-5 text-[var(--color-muted)]" />
               <h4 className="font-bold text-[var(--color-main)]">
-                {mode === "personal" ? "烹饪历史" : "SESSION_LOGS"}
+                {mode === "personal" ? "烹饪历史" : "会话日志"}
               </h4>
             </div>
           </div>
@@ -192,12 +192,12 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
                         <Sparkles className="h-5 w-5" />
                     </div>
                     <h4 className="font-bold text-[var(--color-main)]">
-                        {mode === "personal" ? "菜单生成器" : "MENU_ASSET_GEN"}
+                        {mode === "personal" ? "菜单生成器" : "菜单物料生成"}
                     </h4>
                 </div>
                 
                 <p className="text-sm text-[var(--color-muted)] mb-6">
-                    {mode === "personal" ? "为您的晚宴定制专属精美菜单图片。" : "Generate printable menu assets for distribution."}
+                    {mode === "personal" ? "为您的晚宴定制专属精美菜单图片。" : "生成用于分发的打印级菜单物料。"}
                 </p>
             </div>
 
@@ -218,7 +218,7 @@ export function DashboardContent({ userName, stats, recentRecipes, recentActivit
             <div className="flex items-center gap-2 mb-6 relative z-10">
                 <Sparkles className="h-5 w-5 text-[var(--color-accent)]" />
                 <h4 className="font-bold text-[var(--color-main)]">
-                {mode === "personal" ? "推荐组合" : "OPTIMIZED_SET"}
+                {mode === "personal" ? "推荐组合" : "优化组合"}
                 </h4>
             </div>
 

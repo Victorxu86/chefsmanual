@@ -28,7 +28,7 @@ export function DashboardHeader({ userEmail }: { userEmail: string }) {
             <ChefHat className="h-6 w-6 text-[var(--color-accent)] transition-transform duration-500 group-hover:rotate-12" />
             <span className="text-lg font-bold tracking-tight text-[var(--color-main)]">
               ChefsManual
-              {mode === "business" && <span className="text-xs ml-1 font-mono opacity-50">PRO</span>}
+              {mode === "business" && <span className="text-xs ml-1 font-mono opacity-50">企业版</span>}
             </span>
           </Link>
 

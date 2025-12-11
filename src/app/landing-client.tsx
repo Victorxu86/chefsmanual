@@ -151,7 +151,7 @@ export function LandingClient({
               <div className="col-span-3 hidden md:block rounded-[var(--radius-theme)] bg-[var(--color-page)] border border-[var(--color-border-theme)] p-4">
                  <div className="flex items-center gap-2 mb-4">
                    <Layers className="h-4 w-4 text-[var(--color-muted)]" />
-                   <span className="text-xs font-mono text-[var(--color-muted)]">NEXT_STEPS</span>
+                   <span className="text-xs font-mono text-[var(--color-muted)]">下一步骤</span>
                  </div>
                  <div className="space-y-4">
                    {[1,2,3,4].map(i => (
@@ -253,4 +253,3 @@ function FeatureCard({
     </div>
   );
 }
-

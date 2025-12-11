@@ -27,8 +27,8 @@ export default async function Home() {
             <span className="text-[var(--color-accent)]">简单而精确</span>
           </span>
           <span className="business-text hidden">
-            KITCHEN <br/>
-            <span className="text-[var(--color-accent)] font-mono tracking-tighter">OPERATING_SYSTEM</span>
+            厨房 <br/>
+            <span className="text-[var(--color-accent)] font-mono tracking-tighter">操作系统</span>
           </span>
         </h1>
         

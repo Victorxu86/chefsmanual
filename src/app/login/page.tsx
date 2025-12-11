@@ -32,12 +32,12 @@ function LoginContent() {
             </div>
           </div>
           <h1 className="text-3xl font-bold mb-2 tracking-tight text-[var(--color-main)]">
-            {isSignUp ? (mode === "personal" ? "加入厨房" : "INITIALIZE_USER") : (mode === "personal" ? "欢迎回来" : "ACCESS_CONTROL")}
+            {isSignUp ? (mode === "personal" ? "加入厨房" : "初始化用户") : (mode === "personal" ? "欢迎回来" : "访问控制")}
           </h1>
           <p className="text-[var(--color-muted)] text-sm">
             {mode === "personal" 
               ? "登录以同步您的菜谱和计划" 
-              : "Authentication required for system access."}
+              : "访问系统需要身份验证。"}
           </p>
         </div>
 
@@ -61,7 +61,7 @@ function LoginContent() {
           {isSignUp && (
             <div>
               <label className="block text-sm font-medium text-[var(--color-main)] mb-1.5">
-                {mode === "personal" ? "全名" : "IDENTITY_ID"}
+                {mode === "personal" ? "全名" : "身份 ID"}
               </label>
               <input
                 name="fullName"
@@ -75,7 +75,7 @@ function LoginContent() {
 
           <div>
             <label className="block text-sm font-medium text-[var(--color-main)] mb-1.5">
-              {mode === "personal" ? "邮箱地址" : "EMAIL_PROTOCOL"}
+              {mode === "personal" ? "邮箱地址" : "邮箱地址"}
             </label>
             <input
               name="email"
@@ -88,7 +88,7 @@ function LoginContent() {
 
           <div>
             <label className="block text-sm font-medium text-[var(--color-main)] mb-1.5">
-              {mode === "personal" ? "密码" : "ACCESS_KEY"}
+              {mode === "personal" ? "密码" : "访问密钥"}
             </label>
             <input
               name="password"
@@ -108,7 +108,7 @@ function LoginContent() {
             {loading ? (
               <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
-              isSignUp ? (mode === "personal" ? "注册账号" : "REGISTER_UNIT") : (mode === "personal" ? "立即登录" : "EXECUTE_LOGIN")
+              isSignUp ? (mode === "personal" ? "注册账号" : "注册单元") : (mode === "personal" ? "立即登录" : "执行登录")
             )}
           </button>
         </form>
@@ -121,8 +121,8 @@ function LoginContent() {
             className="text-sm text-[var(--color-muted)] hover:text-[var(--color-accent)] transition-colors font-medium"
           >
             {isSignUp 
-              ? (mode === "personal" ? "已有账号？去登录" : "Have ID? ACCESS_SYSTEM") 
-              : (mode === "personal" ? "没有账号？免费注册" : "No ID? INITIALIZE_NEW_UNIT")}
+              ? (mode === "personal" ? "已有账号？去登录" : "已有 ID？访问系统") 
+              : (mode === "personal" ? "没有账号？免费注册" : "无 ID？初始化新单元")}
           </button>
         </div>
       </div>
@@ -152,7 +152,7 @@ export default function LoginPage() {
           className="flex items-center gap-2 text-[var(--color-muted)] hover:text-[var(--color-main)] transition-colors font-medium"
         >
           <ArrowLeft className="h-4 w-4" />
-          {mode === "personal" ? "返回首页" : "EXIT_TERMINAL"}
+          {mode === "personal" ? "返回首页" : "退出终端"}
         </Link>
       </div>
 
