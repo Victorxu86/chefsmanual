@@ -4,9 +4,11 @@ import { useFormContext, useController } from "react-hook-form"
 import { RecipeFormValues } from "@/lib/schemas"
 import { CUISINES, DIFFICULTIES, RECIPE_CATEGORIES } from "@/lib/constants"
 import { ImageUpload } from "@/components/ui/ImageUpload"
+import { useTranslations } from "next-intl"
 
 export function Step1Meta() {
   const { register, control, formState: { errors } } = useFormContext<RecipeFormValues>()
+  const t = useTranslations('Constants')
   
   const { field: coverImageField } = useController({
     name: "cover_image",
@@ -78,7 +80,7 @@ export function Step1Meta() {
             >
               <option value="">选择类别...</option>
               {RECIPE_CATEGORIES.map(c => (
-                <option key={c.value} value={c.value}>{c.label}</option>
+                <option key={c.value} value={c.value}>{t(`Categories.${c.value}`)}</option>
               ))}
             </select>
           </div>
@@ -91,7 +93,7 @@ export function Step1Meta() {
               className="w-full px-4 py-2 rounded-[var(--radius-theme)] bg-[var(--color-page)] border border-[var(--color-border-theme)] focus:ring-2 focus:ring-[var(--color-accent)] outline-none transition-all"
             >
               {DIFFICULTIES.map(d => (
-                <option key={d.value} value={d.value}>{d.label}</option>
+                <option key={d.value} value={d.value}>{t(`Difficulties.${d.value}`)}</option>
               ))}
             </select>
           </div>

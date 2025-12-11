@@ -1,15 +1,17 @@
 "use client"
 
-import { Link, useRouter } from "@/i18n/navigation"
+import { Link, useRouter, usePathname } from "@/i18n/navigation"
 import { createClient } from "@/utils/supabase/client"
-import { ChefHat, LogOut, Plus, User } from "lucide-react"
+import { ChefHat, LogOut, Plus, User, Globe } from "lucide-react"
 import { useMode } from "@/context/ModeContext"
 import { ThemeToggle } from "@/components/ThemeToggle"
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
 
 export function DashboardHeader({ userEmail }: { userEmail: string }) {
   const { mode } = useMode()
   const router = useRouter()
+  const pathname = usePathname()
+  const locale = useLocale()
   const supabase = createClient()
   const t = useTranslations('Navigation')
 
@@ -17,6 +19,11 @@ export function DashboardHeader({ userEmail }: { userEmail: string }) {
     await supabase.auth.signOut()
     router.push("/login")
     router.refresh()
+  }
+
+  const toggleLocale = () => {
+    const newLocale = locale === 'zh' ? 'en' : 'zh'
+    router.replace(pathname, { locale: newLocale })
   }
 
   return (
@@ -44,6 +51,15 @@ export function DashboardHeader({ userEmail }: { userEmail: string }) {
 
         {/* Actions Area */}
         <div className="flex items-center gap-4">
+          <button 
+            onClick={toggleLocale}
+            className="p-2 rounded-full hover:bg-[var(--color-card)] transition-colors text-[var(--color-muted)] hover:text-[var(--color-main)]"
+            title={locale === 'zh' ? 'Switch to English' : '切换到中文'}
+          >
+            <Globe className="h-5 w-5" />
+            <span className="sr-only">Switch Language</span>
+          </button>
+
           <div className="h-6 w-px bg-[var(--color-border-theme)] mx-2" />
           
           <ThemeToggle />

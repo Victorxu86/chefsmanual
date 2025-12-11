@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react"
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form"
 import { ACTIONS, ACTION_HIERARCHY, EQUIPMENT, HEAT_LEVELS, SHAPES, ActionDefinition } from "@/lib/constants"
 import { Plus, Trash2, Clock, Flame, ChevronRight, X, AlertCircle, Settings2, ChevronLeft, Home } from "lucide-react"
+import { useTranslations } from "next-intl"
 
 // ... (保留之前的 Time Steps 逻辑)
 const TIME_STEPS = [
@@ -29,6 +30,7 @@ const formatDuration = (seconds: number) => {
 
 export function Step3Timeline() {
   const { control } = useFormContext()
+  const t = useTranslations('Constants')
   const { fields, append, remove, update, insert } = useFieldArray({
     control,
     name: "steps"
@@ -159,7 +161,7 @@ export function Step3Timeline() {
                   `}
                 >
                   <span className="text-xl mb-1">{realm.icon}</span>
-                  <span className="text-[10px] font-bold scale-90 whitespace-nowrap">{realm.label.split('/')[0]}</span>
+                  <span className="text-[10px] font-bold scale-90 whitespace-nowrap">{t(`Realms.${realm.id}`)}</span>
                   {isActive && <div className="absolute -bottom-1 w-1 h-1 rounded-full bg-[var(--color-accent)]" />}
                 </button>
               )
@@ -184,7 +186,7 @@ export function Step3Timeline() {
                       : 'bg-[var(--color-card)] text-[var(--color-muted)] border-[var(--color-border-theme)] hover:border-[var(--color-accent)] hover:text-[var(--color-main)]'}
                   `}
                 >
-                  {cat.label}
+                  {t(`ActionCategories.${cat.id}`)}
                 </button>
               )
             })}
