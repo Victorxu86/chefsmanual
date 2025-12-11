@@ -89,9 +89,8 @@ export function SmartCookingDial({
   
   const currentColor = isLocked ? colors.locked : colors[type] || colors.cook
   
-  // Long Press Color Mapping (Overlay)
-  // We use the same color logic but apply it to the overlay circle with opacity
-  const overlayColor = isLocked ? 'text-[var(--color-main)]' : colors[type].split(' ')[0] // Extract just text-color class
+  // Extract text color class for overlay (e.g. "text-green-500")
+  const overlayColor = isLocked ? 'text-gray-300' : (colors[type] || colors.cook).split(' ')[0]
   
   // SVG Math
   const strokeWidth = size * 0.04 // Relative stroke width
