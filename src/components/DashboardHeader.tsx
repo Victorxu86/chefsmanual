@@ -1,16 +1,17 @@
 "use client"
 
-import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { Link, useRouter } from "@/i18n/navigation"
 import { createClient } from "@/utils/supabase/client"
 import { ChefHat, LogOut, Plus, User } from "lucide-react"
 import { useMode } from "@/context/ModeContext"
 import { ThemeToggle } from "@/components/ThemeToggle"
+import { useTranslations } from "next-intl"
 
 export function DashboardHeader({ userEmail }: { userEmail: string }) {
   const { mode } = useMode()
   const router = useRouter()
   const supabase = createClient()
+  const t = useTranslations('Navigation')
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -34,10 +35,10 @@ export function DashboardHeader({ userEmail }: { userEmail: string }) {
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[var(--color-muted)]">
-            <Link href="/dashboard" className="hover:text-[var(--color-main)] transition-colors">控制台</Link>
-            <Link href="/recipes" className="hover:text-[var(--color-main)] transition-colors">我的菜谱</Link>
-            <Link href="/plan" className="hover:text-[var(--color-main)] transition-colors">计划</Link>
-            <Link href="/market" className="hover:text-[var(--color-main)] transition-colors">商店</Link>
+            <Link href="/dashboard" className="hover:text-[var(--color-main)] transition-colors">{t('dashboard')}</Link>
+            <Link href="/recipes" className="hover:text-[var(--color-main)] transition-colors">{t('my_recipes')}</Link>
+            <Link href="/plan" className="hover:text-[var(--color-main)] transition-colors">{t('plan')}</Link>
+            <Link href="/market" className="hover:text-[var(--color-main)] transition-colors">{t('market')}</Link>
           </nav>
         </div>
 
@@ -64,7 +65,7 @@ export function DashboardHeader({ userEmail }: { userEmail: string }) {
                 className="w-full flex items-center gap-2 p-3 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left"
               >
                 <LogOut className="h-4 w-4" />
-                退出登录
+                {t('logout')}
               </button>
             </div>
           </div>

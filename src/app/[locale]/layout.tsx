@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
-import "./globals.css";
+import "../../globals.css";
 import { ModeProvider } from "@/context/ModeContext";
+import { NextIntlClientProvider } from 'next-intl';
+import { getMessages } from 'next-intl/server';
+import { notFound } from 'next/navigation';
 
 const inter = Inter({
   subsets: ["latin"],
@@ -20,17 +23,30 @@ export const metadata: Metadata = {
   description: "将烹饪拆解为精确的工程步骤。ChefsManual 提供实时计时、多菜调度与 SOP 标准化指导。",
 };
 
-export default function RootLayout({
+export default async function LocaleLayout({
   children,
-}: Readonly<{
+  params
+}: {
   children: React.ReactNode;
-}>) {
+  params: { locale: string };
+}) {
+  const { locale } = await params;
+  
+  // Ensure that the incoming `locale` is valid
+  if (!['en', 'zh'].includes(locale)) {
+    notFound();
+  }
+
+  const messages = await getMessages();
+
   return (
-    <html lang="zh-CN" className={`${inter.variable} ${mono.variable}`}>
+    <html lang={locale} className={`${inter.variable} ${mono.variable}`}>
       <body className="antialiased font-sans">
-        <ModeProvider>
-          {children}
-        </ModeProvider>
+        <NextIntlClientProvider messages={messages}>
+          <ModeProvider>
+            {children}
+          </ModeProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

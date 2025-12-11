@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { ArrowRight, Clock, Layers, Zap, ChefHat, Play, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { ThemeToggle } from "@/components/ThemeToggle";

@@ -1,0 +1,26 @@
+{
+  "Common": {
+    "loading": "加载中...",
+    "error": "出错了",
+    "back": "返回",
+    "save": "保存",
+    "cancel": "取消",
+    "confirm": "确定",
+    "delete": "删除",
+    "edit": "编辑"
+  },
+  "Navigation": {
+    "dashboard": "控制台",
+    "my_recipes": "我的菜谱",
+    "plan": "计划",
+    "market": "商店",
+    "logout": "退出登录"
+  },
+  "Dashboard": {
+    "welcome": "欢迎回来",
+    "quick_start": "快速开始",
+    "weekly_stats": "本周统计",
+    "total_time_saved": "累计节省时间"
+  }
+}
+

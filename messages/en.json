@@ -1,0 +1,26 @@
+{
+  "Common": {
+    "loading": "Loading...",
+    "error": "Error occurred",
+    "back": "Back",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit"
+  },
+  "Navigation": {
+    "dashboard": "Dashboard",
+    "my_recipes": "My Recipes",
+    "plan": "Plan",
+    "market": "Market",
+    "logout": "Logout"
+  },
+  "Dashboard": {
+    "welcome": "Welcome Back",
+    "quick_start": "Quick Start",
+    "weekly_stats": "Weekly Stats",
+    "total_time_saved": "Time Saved"
+  }
+}
+
